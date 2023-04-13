@@ -51,11 +51,7 @@ class SpacyNLP(Component):
             return spacy.load(spacy_model_name, disable=["parser"])
         except OSError:
             raise InvalidModelError(
-                "Model '{}' is not a linked spaCy model.  "
-                "Please download and/or link a spaCy model, "
-                "e.g. by running:\npython -m spacy download "
-                "en_core_web_md\npython -m spacy link "
-                "en_core_web_md en".format(spacy_model_name)
+                f"Model '{spacy_model_name}' is not a linked spaCy model.  Please download and/or link a spaCy model, e.g. by running:\npython -m spacy download en_core_web_md\npython -m spacy link en_core_web_md en"
             )
 
     @classmethod
@@ -92,7 +88,7 @@ class SpacyNLP(Component):
         # as the model name if no explicit name is defined
         spacy_model_name = component_meta.get("model", model_metadata.language)
 
-        return cls.name + "-" + spacy_model_name
+        return f"{cls.name}-{spacy_model_name}"
 
     def provide_context(self) -> Dict[Text, Any]:
         return {"spacy_nlp": self.nlp}
@@ -108,10 +104,7 @@ class SpacyNLP(Component):
             # Another option could be to neglect tokenization of the attribute of this example, but since we are
             # processing in batch mode, it would get complex to collect all processed and neglected examples.
             text = ""
-        if self.component_config.get("case_sensitive"):
-            return text
-        else:
-            return text.lower()
+        return text if self.component_config.get("case_sensitive") else text.lower()
 
     def get_text(self, example: Dict[Text, Any], attribute: Text) -> Text:
 
@@ -124,8 +117,7 @@ class SpacyNLP(Component):
     ) -> List[Tuple[int, "Doc"]]:
         """Merge lists with processed Docs back into their original order."""
 
-        dct = dict(indexed_training_samples)
-        dct.update(dict(doc_lists))
+        dct = dict(indexed_training_samples) | doc_lists
         return sorted(dct.items())
 
     @staticmethod
@@ -153,19 +145,17 @@ class SpacyNLP(Component):
     ) -> List[Tuple[int, "Doc"]]:
         """Sends content bearing training samples to spaCy's pipe."""
 
-        docs = [
+        return [
             (to_pipe_sample[0], doc)
             for to_pipe_sample, doc in zip(
                 samples_to_pipe,
-                [
-                    doc
-                    for doc in self.nlp.pipe(
+                list(
+                    self.nlp.pipe(
                         [txt for _, txt in samples_to_pipe], batch_size=50
                     )
-                ],
+                ),
             )
         ]
-        return docs
 
     def process_non_content_bearing_samples(
         self, empty_samples: List[Tuple[int, Text]]
@@ -174,13 +164,12 @@ class SpacyNLP(Component):
 
         from spacy.tokens import Doc
 
-        n_docs = [
+        return [
             (empty_sample[0], doc)
             for empty_sample, doc in zip(
-                empty_samples, [Doc(self.nlp.vocab) for doc in empty_samples]
+                empty_samples, [Doc(self.nlp.vocab) for _ in empty_samples]
             )
         ]
-        return n_docs
 
     def docs_for_training_data(
         self, training_data: TrainingData
@@ -190,7 +179,7 @@ class SpacyNLP(Component):
             texts = [self.get_text(e, attribute) for e in training_data.intent_examples]
             # Index and freeze indices of the training samples for preserving the order
             # after processing the data.
-            indexed_training_samples = [(idx, text) for idx, text in enumerate(texts)]
+            indexed_training_samples = list(enumerate(texts))
 
             samples_to_pipe, empty_samples = self.filter_training_samples_by_content(
                 indexed_training_samples
@@ -266,8 +255,5 @@ class SpacyNLP(Component):
             # it did not load the model from disk.
             # In this case `nlp` is an unusable stub.
             raise Exception(
-                "Failed to load spacy language model for "
-                "lang '{}'. Make sure you have downloaded the "
-                "correct model (https://spacy.io/docs/usage/)."
-                "".format(nlp.lang)
+                f"Failed to load spacy language model for lang '{nlp.lang}'. Make sure you have downloaded the correct model (https://spacy.io/docs/usage/)."
             )

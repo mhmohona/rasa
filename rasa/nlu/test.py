@@ -242,7 +242,7 @@ def clean_labels(labels: Iterable[Any]) -> List[Text]:
 def drop_intents_below_freq(td: TrainingData, cutoff: int = 5) -> TrainingData:
     """Remove intent groups with less than cutoff instances."""
 
-    logger.debug("Raw data intent examples: {}".format(len(td.intent_examples)))
+    logger.debug(f"Raw data intent examples: {len(td.intent_examples)}")
     keep_examples = [
         ex
         for ex in td.intent_examples
@@ -258,7 +258,7 @@ def collect_nlu_successes(
     """Log messages which result in successful predictions
     and save them to file"""
 
-    successes = [
+    if successes := [
         {
             "text": r.message,
             "intent": r.intent_target,
@@ -269,9 +269,7 @@ def collect_nlu_successes(
         }
         for r in intent_results
         if r.intent_target == r.intent_prediction
-    ]
-
-    if successes:
+    ]:
         utils.write_json_to_file(successes_filename, successes)
         logger.info(f"Successful intent predictions saved to {successes_filename}.")
         logger.debug(f"\n\nSuccessfully predicted the following intents: \n{successes}")
@@ -284,7 +282,7 @@ def collect_nlu_errors(
 ) -> None:
     """Log messages which result in wrong predictions and save them to file"""
 
-    errors = [
+    if errors := [
         {
             "text": r.message,
             "intent": r.intent_target,
@@ -295,14 +293,11 @@ def collect_nlu_errors(
         }
         for r in intent_results
         if r.intent_target != r.intent_prediction
-    ]
-
-    if errors:
+    ]:
         utils.write_json_to_file(errors_filename, errors)
         logger.info(f"Incorrect intent predictions saved to {errors_filename}.")
         logger.debug(
-            "\n\nThese intent examples could not be classified "
-            "correctly: \n{}".format(errors)
+            f"\n\nThese intent examples could not be classified correctly: \n{errors}"
         )
     else:
         logger.info("Your model predicted all intents successfully.")
@@ -338,7 +333,7 @@ def plot_attribute_confidences(
 def evaluate_response_selections(
     response_selection_results: List[ResponseSelectionEvaluationResult],
     report_folder: Optional[Text],
-) -> Dict:  # pragma: no cover
+) -> Dict:    # pragma: no cover
     """Creates summary statistics for response selection.
 
     Only considers those examples with a set response.
@@ -354,9 +349,7 @@ def evaluate_response_selections(
     )
 
     logger.info(
-        "Response Selection Evaluation: Only considering those "
-        "{} examples that have a defined response out "
-        "of {} examples".format(len(response_selection_results), num_examples)
+        f"Response Selection Evaluation: Only considering those {len(response_selection_results)} examples that have a defined response out of {num_examples} examples"
     )
 
     target_responses, predicted_responses = _targets_predictions_from(
@@ -443,7 +436,7 @@ def evaluate_intents(
     confmat_filename: Optional[Text],
     intent_hist_filename: Optional[Text],
     disable_plotting: bool,
-) -> Dict:  # pragma: no cover
+) -> Dict:    # pragma: no cover
     """Creates a confusion matrix and summary statistics for intent predictions.
 
     Log samples which could not be classified correctly and save them to file.
@@ -462,9 +455,7 @@ def evaluate_intents(
     intent_results = remove_empty_intent_examples(intent_results)
 
     logger.info(
-        "Intent Evaluation: Only considering those "
-        "{} examples that have a defined intent out "
-        "of {} examples".format(len(intent_results), num_examples)
+        f"Intent Evaluation: Only considering those {len(intent_results)} examples that have a defined intent out of {num_examples} examples"
     )
 
     target_intents, predicted_intents = _targets_predictions_from(
@@ -589,16 +580,13 @@ def write_incorrect_entity_predictions(
     merged_predictions: List[Text],
     error_filename: Text,
 ):
-    errors = collect_incorrect_entity_predictions(
+    if errors := collect_incorrect_entity_predictions(
         entity_results, merged_predictions, merged_targets
-    )
-
-    if errors:
+    ):
         utils.write_json_to_file(error_filename, errors)
         logger.info(f"Incorrect entity predictions saved to {error_filename}.")
         logger.debug(
-            "\n\nThese intent examples could not be classified "
-            "correctly: \n{}".format(errors)
+            f"\n\nThese intent examples could not be classified correctly: \n{errors}"
         )
     else:
         logger.info("Your model predicted all entities successfully.")
@@ -632,11 +620,9 @@ def write_successful_entity_predictions(
     merged_predictions: List[Text],
     successes_filename: Text,
 ):
-    successes = collect_successful_entity_predictions(
+    if successes := collect_successful_entity_predictions(
         entity_results, merged_predictions, merged_targets
-    )
-
-    if successes:
+    ):
         utils.write_json_to_file(successes_filename, successes)
         logger.info(f"Successful entity predictions saved to {successes_filename}.")
         logger.debug(
@@ -677,7 +663,7 @@ def evaluate_entities(
     output_directory: Optional[Text],
     successes: bool = False,
     errors: bool = False,
-) -> Dict:  # pragma: no cover
+) -> Dict:    # pragma: no cover
     """Creates summary statistics for each entity extractor.
     Logs precision, recall, and F1 per entity type for each extractor."""
 
@@ -704,8 +690,7 @@ def evaluate_entities(
             utils.write_json_to_file(extractor_report_filename, report)
 
             logger.info(
-                "Classification report for '{}' saved to '{}'."
-                "".format(extractor, extractor_report_filename)
+                f"Classification report for '{extractor}' saved to '{extractor_report_filename}'."
             )
 
         else:
@@ -801,9 +786,7 @@ def find_intersecting_entites(token: Token, entities: List[Dict]) -> List[Dict]:
         elif does_token_cross_borders(token, e):
             candidates.append(e)
             logger.debug(
-                "Token boundary error for token {}({}, {}) "
-                "and entity {}"
-                "".format(token.text, token.offset, token.end, e)
+                f"Token boundary error for token {token.text}({token.offset}, {token.end}) and entity {e}"
             )
     return candidates
 
@@ -815,7 +798,7 @@ def pick_best_entity_fit(token: Token, candidates: List[Dict]) -> Text:
     :return: entity type
     """
 
-    if len(candidates) == 0:
+    if not candidates:
         return "O"
     elif len(candidates) == 1:
         return candidates[0]["entity"]
@@ -836,7 +819,7 @@ def determine_token_labels(
         entity type
     """
 
-    if entities is None or len(entities) == 0:
+    if entities is None or not entities:
         return "O"
     if not do_extractors_support_overlap(extractors) and do_entities_overlap(entities):
         raise ValueError("The possible entities should not overlap")
@@ -897,11 +880,10 @@ def align_all_entity_predictions(
     :return: list of dictionaries containing the true token labels and token
              labels from the extractors
     """
-    aligned_predictions = []
-    for result in entity_results:
-        aligned_predictions.append(align_entity_predictions(result, extractors))
-
-    return aligned_predictions
+    return [
+        align_entity_predictions(result, extractors)
+        for result in entity_results
+    ]
 
 
 def get_eval_data(
@@ -1030,11 +1012,11 @@ def is_response_selector_present(interpreter: Interpreter) -> bool:
 def get_available_response_selector_types(interpreter: Interpreter) -> List[Text]:
     """Gets all available response selector types"""
 
-    response_selector_types = [
-        c.retrieval_intent for c in interpreter.pipeline if "response" in c.provides
+    return [
+        c.retrieval_intent
+        for c in interpreter.pipeline
+        if "response" in c.provides
     ]
-
-    return response_selector_types
 
 
 def remove_pretrained_extractors(pipeline: List[Component]) -> List[Component]:
@@ -1423,9 +1405,9 @@ def compare_nlu(
 
     for run in range(runs):
 
-        logger.info("Beginning comparison run {}/{}".format(run + 1, runs))
+        logger.info(f"Beginning comparison run {run + 1}/{runs}")
 
-        run_path = os.path.join(output, "run_{}".format(run + 1))
+        run_path = os.path.join(output, f"run_{run + 1}")
         io_utils.create_path(run_path)
 
         test_path = os.path.join(run_path, TEST_DATA_FILE)
@@ -1449,9 +1431,7 @@ def compare_nlu(
 
             for nlu_config, model_name in zip(configs, model_names):
                 logger.info(
-                    "Evaluating configuration '{}' with {} training data.".format(
-                        model_name, percent_string
-                    )
+                    f"Evaluating configuration '{model_name}' with {percent_string} training data."
                 )
 
                 try:

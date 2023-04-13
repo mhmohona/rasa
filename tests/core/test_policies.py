@@ -95,10 +95,9 @@ class PolicyTestCollection:
 
     @pytest.fixture(scope="module")
     def featurizer(self):
-        featurizer = MaxHistoryTrackerFeaturizer(
+        return MaxHistoryTrackerFeaturizer(
             BinarySingleStateFeaturizer(), max_history=self.max_history
         )
-        return featurizer
 
     @pytest.fixture(scope="module")
     def priority(self):
@@ -188,14 +187,12 @@ class PolicyTestCollection:
 
 class TestKerasPolicy(PolicyTestCollection):
     def create_policy(self, featurizer, priority):
-        p = KerasPolicy(featurizer, priority)
-        return p
+        return KerasPolicy(featurizer, priority)
 
 
 class TestKerasPolicyWithTfConfig(PolicyTestCollection):
     def create_policy(self, featurizer, priority):
-        p = KerasPolicy(featurizer, priority, **tf_defaults())
-        return p
+        return KerasPolicy(featurizer, priority, **tf_defaults())
 
     def test_tf_config(self, trained_policy, tmpdir):
         # noinspection PyProtectedMember
@@ -208,8 +205,7 @@ class TestKerasPolicyWithTfConfig(PolicyTestCollection):
 
 class TestSklearnPolicy(PolicyTestCollection):
     def create_policy(self, featurizer, priority, **kwargs):
-        p = SklearnPolicy(featurizer, priority, **kwargs)
-        return p
+        return SklearnPolicy(featurizer, priority, **kwargs)
 
     @pytest.yield_fixture
     def mock_search(self):
@@ -331,8 +327,7 @@ class TestSklearnPolicy(PolicyTestCollection):
 
 class TestEmbeddingPolicy(PolicyTestCollection):
     def create_policy(self, featurizer, priority):
-        p = EmbeddingPolicy(featurizer=featurizer, priority=priority)
-        return p
+        return EmbeddingPolicy(featurizer=featurizer, priority=priority)
 
     def test_similarity_type(self, trained_policy):
         assert trained_policy.similarity_type == "inner"
@@ -374,10 +369,9 @@ class TestEmbeddingPolicy(PolicyTestCollection):
 
 class TestEmbeddingPolicyMargin(TestEmbeddingPolicy):
     def create_policy(self, featurizer, priority):
-        p = EmbeddingPolicy(
+        return EmbeddingPolicy(
             featurizer=featurizer, priority=priority, **{"loss_type": "margin"}
         )
-        return p
 
     def test_similarity_type(self, trained_policy):
         assert trained_policy.similarity_type == "cosine"
@@ -385,21 +379,16 @@ class TestEmbeddingPolicyMargin(TestEmbeddingPolicy):
 
 class TestEmbeddingPolicyWithEval(TestEmbeddingPolicy):
     def create_policy(self, featurizer, priority):
-        p = EmbeddingPolicy(
+        return EmbeddingPolicy(
             featurizer=featurizer,
             priority=priority,
             **{"scale_loss": False, "evaluate_on_num_examples": 4},
         )
-        return p
 
 
 class TestEmbeddingPolicyWithFullDialogue(TestEmbeddingPolicy):
     def create_policy(self, featurizer, priority):
-        # use standard featurizer from EmbeddingPolicy,
-        # since it is using FullDialogueTrackerFeaturizer
-        # if max_history is not specified
-        p = EmbeddingPolicy(priority=priority)
-        return p
+        return EmbeddingPolicy(priority=priority)
 
     def test_featurizer(self, trained_policy, tmpdir):
         assert isinstance(trained_policy.featurizer, FullDialogueTrackerFeaturizer)
@@ -417,11 +406,7 @@ class TestEmbeddingPolicyWithFullDialogue(TestEmbeddingPolicy):
 
 class TestEmbeddingPolicyWithMaxHistory(TestEmbeddingPolicy):
     def create_policy(self, featurizer, priority):
-        # use standard featurizer from EmbeddingPolicy,
-        # since it is using MaxHistoryTrackerFeaturizer
-        # if max_history is specified
-        p = EmbeddingPolicy(priority=priority, max_history=self.max_history)
-        return p
+        return EmbeddingPolicy(priority=priority, max_history=self.max_history)
 
     def test_featurizer(self, trained_policy, tmpdir):
         assert isinstance(trained_policy.featurizer, MaxHistoryTrackerFeaturizer)
@@ -441,8 +426,9 @@ class TestEmbeddingPolicyWithMaxHistory(TestEmbeddingPolicy):
 
 class TestEmbeddingPolicyWithTfConfig(TestEmbeddingPolicy):
     def create_policy(self, featurizer, priority):
-        p = EmbeddingPolicy(featurizer=featurizer, priority=priority, **tf_defaults())
-        return p
+        return EmbeddingPolicy(
+            featurizer=featurizer, priority=priority, **tf_defaults()
+        )
 
     def test_tf_config(self, trained_policy, tmpdir):
         # noinspection PyProtectedMember
@@ -458,8 +444,7 @@ class TestMemoizationPolicy(PolicyTestCollection):
         max_history = None
         if isinstance(featurizer, MaxHistoryTrackerFeaturizer):
             max_history = featurizer.max_history
-        p = MemoizationPolicy(priority=priority, max_history=max_history)
-        return p
+        return MemoizationPolicy(priority=priority, max_history=max_history)
 
     def test_featurizer(self, trained_policy, tmpdir):
         assert isinstance(trained_policy.featurizer, MaxHistoryTrackerFeaturizer)
@@ -490,7 +475,7 @@ class TestMemoizationPolicy(PolicyTestCollection):
             assert recalled == default_domain.index_for_action(actions[0])
 
         nums = np.random.randn(default_domain.num_states)
-        random_states = [{f: num for f, num in zip(default_domain.input_states, nums)}]
+        random_states = [dict(zip(default_domain.input_states, nums))]
         assert trained_policy._recall_states(random_states) is None
 
         # compare augmentation for augmentation_factor of 0 and 20:
@@ -521,14 +506,12 @@ class TestAugmentedMemoizationPolicy(TestMemoizationPolicy):
         max_history = None
         if isinstance(featurizer, MaxHistoryTrackerFeaturizer):
             max_history = featurizer.max_history
-        p = AugmentedMemoizationPolicy(priority=priority, max_history=max_history)
-        return p
+        return AugmentedMemoizationPolicy(priority=priority, max_history=max_history)
 
 
 class TestFormPolicy(TestMemoizationPolicy):
     def create_policy(self, featurizer, priority):
-        p = FormPolicy(priority=priority)
-        return p
+        return FormPolicy(priority=priority)
 
     async def test_memorise(self, trained_policy, default_domain):
         domain = Domain.load("data/test_domains/form.yml")
@@ -581,17 +564,14 @@ class TestFormPolicy(TestMemoizationPolicy):
             else:
                 is_no_validation = False
 
-            if "intent_start_form" in states[-1]:
+            if "intent_start_form" in states[-1] or not is_no_validation:
                 # explicitly check that intent that starts the form
                 # is not memorized as non validation intent
                 assert recalled is None
-            elif is_no_validation:
-                assert recalled == active_form
             else:
-                assert recalled is None
-
+                assert recalled == active_form
         nums = np.random.randn(domain.num_states)
-        random_states = [{f: num for f, num in zip(domain.input_states, nums)}]
+        random_states = [dict(zip(domain.input_states, nums))]
         assert trained_policy.recall(random_states, None, domain) is None
 
     def test_memorise_with_nlu(self, trained_policy, default_domain):
@@ -600,8 +580,7 @@ class TestFormPolicy(TestMemoizationPolicy):
 
 class TestMappingPolicy(PolicyTestCollection):
     def create_policy(self, featurizer, priority):
-        p = MappingPolicy()
-        return p
+        return MappingPolicy()
 
     def test_featurizer(self, trained_policy, tmpdir):
         assert trained_policy.featurizer is None
@@ -681,8 +660,7 @@ class TestMappingPolicy(PolicyTestCollection):
 
 class TestFallbackPolicy(PolicyTestCollection):
     def create_policy(self, featurizer, priority):
-        p = FallbackPolicy(priority=priority)
-        return p
+        return FallbackPolicy(priority=priority)
 
     def test_featurizer(self, trained_policy, tmpdir):
         assert trained_policy.featurizer is None
@@ -724,10 +702,9 @@ class TestFallbackPolicy(PolicyTestCollection):
 
 class TestTwoStageFallbackPolicy(TestFallbackPolicy):
     def create_policy(self, featurizer, priority):
-        p = TwoStageFallbackPolicy(
+        return TwoStageFallbackPolicy(
             priority=priority, deny_suggestion_intent_name="deny"
         )
-        return p
 
     @pytest.fixture(scope="class")
     def default_domain(self):

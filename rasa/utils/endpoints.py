@@ -31,8 +31,7 @@ def read_endpoint_config(
             return None
     except FileNotFoundError:
         logger.error(
-            "Failed to read endpoint configuration "
-            "from {}. No such file.".format(os.path.abspath(filename))
+            f"Failed to read endpoint configuration from {os.path.abspath(filename)}. No such file."
         )
         return None
 
@@ -48,14 +47,12 @@ def concat_url(base: Text, subpath: Optional[Text]) -> Text:
     if not subpath:
         if base.endswith("/"):
             logger.debug(
-                "The URL '{}' has a trailing slash. Please make sure the "
-                "target server supports trailing slashes for this "
-                "endpoint.".format(base)
+                f"The URL '{base}' has a trailing slash. Please make sure the target server supports trailing slashes for this endpoint."
             )
         return base
 
     url = base
-    if not base.endswith("/"):
+    if not url.endswith("/"):
         url += "/"
     if subpath.startswith("/"):
         subpath = subpath[1:]
@@ -76,8 +73,8 @@ class EndpointConfig:
         **kwargs,
     ):
         self.url = url
-        self.params = params if params else {}
-        self.headers = headers if headers else {}
+        self.params = params or {}
+        self.headers = headers or {}
         self.basic_auth = basic_auth
         self.token = token
         self.token_name = token_name
@@ -133,7 +130,7 @@ class EndpointConfig:
             headers["Content-Type"] = content_type
 
         if "headers" in kwargs:
-            headers.update(kwargs["headers"])
+            headers |= kwargs["headers"]
             del kwargs["headers"]
 
         url = concat_url(self.url, subpath)

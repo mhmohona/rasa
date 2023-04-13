@@ -36,22 +36,20 @@ class Featurizer(Component):
         additional_features: Any,
         feature_name: Text = DENSE_FEATURE_NAMES[TEXT_ATTRIBUTE],
     ) -> Any:
-        if message.get(feature_name) is not None:
-
-            if len(message.get(feature_name)) != len(additional_features):
-                raise ValueError(
-                    f"Cannot concatenate dense features as sequence dimension does not "
-                    f"match: {len(message.get(feature_name))} != "
-                    f"{len(additional_features)}. "
-                    f"Make sure to set 'return_sequence' to the same value for all your "
-                    f"featurizers."
-                )
-
-            return np.concatenate(
-                (message.get(feature_name), additional_features), axis=-1
-            )
-        else:
+        if message.get(feature_name) is None:
             return additional_features
+        if len(message.get(feature_name)) != len(additional_features):
+            raise ValueError(
+                f"Cannot concatenate dense features as sequence dimension does not "
+                f"match: {len(message.get(feature_name))} != "
+                f"{len(additional_features)}. "
+                f"Make sure to set 'return_sequence' to the same value for all your "
+                f"featurizers."
+            )
+
+        return np.concatenate(
+            (message.get(feature_name), additional_features), axis=-1
+        )
 
     @staticmethod
     def _combine_with_existing_sparse_features(
@@ -59,17 +57,16 @@ class Featurizer(Component):
         additional_features: Any,
         feature_name: Text = SPARSE_FEATURE_NAMES[TEXT_ATTRIBUTE],
     ) -> Any:
-        if message.get(feature_name) is not None:
-            from scipy.sparse import hstack
-
-            if message.get(feature_name).shape[0] != additional_features.shape[0]:
-                raise ValueError(
-                    f"Cannot concatenate sparse features as sequence dimension does not "
-                    f"match: {message.get(feature_name).shape[0]} != "
-                    f"{additional_features.shape[0]}. "
-                    f"Make sure to set 'return_sequence' to the same value for all your "
-                    f"featurizers."
-                )
-            return hstack([message.get(feature_name), additional_features])
-        else:
+        if message.get(feature_name) is None:
             return additional_features
+        from scipy.sparse import hstack
+
+        if message.get(feature_name).shape[0] != additional_features.shape[0]:
+            raise ValueError(
+                f"Cannot concatenate sparse features as sequence dimension does not "
+                f"match: {message.get(feature_name).shape[0]} != "
+                f"{additional_features.shape[0]}. "
+                f"Make sure to set 'return_sequence' to the same value for all your "
+                f"featurizers."
+            )
+        return hstack([message.get(feature_name), additional_features])

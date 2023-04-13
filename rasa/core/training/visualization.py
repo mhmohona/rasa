@@ -182,7 +182,7 @@ def _transfer_style(source, target: Dict[Text, Any]) -> Dict[Text, Any]:
 
     for c in special_classes:
         if c in clazzes and c not in target["class"]:
-            target["class"] += " " + c
+            target["class"] += f" {c}"
 
     target["class"] = target["class"].strip()
     return target
@@ -420,10 +420,7 @@ async def visualize_neighborhood(
                 idx -= 1
                 break
             if isinstance(el, UserUttered):
-                if not el.intent:
-                    message = await interpreter.parse(el.text)
-                else:
-                    message = el.parse_data
+                message = el.parse_data if el.intent else await interpreter.parse(el.text)
             elif (
                 isinstance(el, ActionExecuted) and el.action_name != ACTION_LISTEN_NAME
             ):
@@ -454,11 +451,11 @@ async def visualize_neighborhood(
                 next_node_idx += 1
                 graph.add_node(
                     next_node_idx,
-                    label="  ?  "
-                    if not message
-                    else message.get("intent", {}).get("name", "  ?  "),
+                    label=message.get("intent", {}).get("name", "  ?  ")
+                    if message
+                    else "  ?  ",
                     shape="rect",
-                    **{"class": "intent dashed active"},
+                    **{"class": "intent dashed active"}
                 )
                 target = next_node_idx
             elif current_node:
@@ -562,7 +559,7 @@ async def visualize_stories(
     completed_trackers = g.generate()
     event_sequences = [t.events for t in completed_trackers]
 
-    graph = await visualize_neighborhood(
+    return await visualize_neighborhood(
         None,
         event_sequences,
         output_file,
@@ -573,4 +570,3 @@ async def visualize_stories(
         max_distance=1,
         fontsize=fontsize,
     )
-    return graph

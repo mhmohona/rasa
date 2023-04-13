@@ -456,7 +456,7 @@ def test_botframework_attachments():
 
     metadata = {"test": 1, "bigger_test": {"key": "value"}}
     updated_metadata = deepcopy(metadata)
-    updated_metadata.update({"attachments": attachments})
+    updated_metadata["attachments"] = attachments
 
     assert ch.add_attachments_to_metadata(payload, metadata) == updated_metadata
 
@@ -501,16 +501,11 @@ def test_slack_message_sanitization():
     ]
 
     # no message that is wrongly sanitized please
-    assert (
-        len(
-            [
-                sanitized
-                for sanitized, target in zip(sanitized_messages, target_messages)
-                if sanitized != target
-            ]
-        )
-        == 0
-    )
+    assert not [
+        sanitized
+        for sanitized, target in zip(sanitized_messages, target_messages)
+        if sanitized != target
+    ]
 
 
 def test_slack_init_one_parameter():
@@ -866,7 +861,7 @@ async def test_rasa_chat_input():
     jwt_algorithm = "RS256"
     with aioresponses() as mocked:
         mocked.get(
-            rasa_x_api_url + "/version",
+            f"{rasa_x_api_url}/version",
             payload={"keys": [{"key": public_key, "alg": jwt_algorithm}]},
             repeat=True,
             status=200,

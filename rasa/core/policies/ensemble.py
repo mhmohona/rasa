@@ -43,11 +43,7 @@ class PolicyEnsemble:
         self.training_trackers = None
         self.date_trained = None
 
-        if action_fingerprints:
-            self.action_fingerprints = action_fingerprints
-        else:
-            self.action_fingerprints = {}
-
+        self.action_fingerprints = action_fingerprints or {}
         self._check_priorities()
         self._check_for_important_policies()
 
@@ -56,14 +52,7 @@ class PolicyEnsemble:
 
         if not any(isinstance(policy, MappingPolicy) for policy in self.policies):
             logger.info(
-                "MappingPolicy not included in policy ensemble. Default intents "
-                "'{} and {} will not trigger actions '{}' and '{}'."
-                "".format(
-                    USER_INTENT_RESTART,
-                    USER_INTENT_BACK,
-                    ACTION_RESTART_NAME,
-                    ACTION_BACK_NAME,
-                )
+                f"MappingPolicy not included in policy ensemble. Default intents '{USER_INTENT_RESTART} and {USER_INTENT_BACK} will not trigger actions '{ACTION_RESTART_NAME}' and '{ACTION_BACK_NAME}'."
             )
 
     @staticmethod
@@ -193,7 +182,7 @@ class PolicyEnsemble:
             "action_fingerprints": action_fingerprints,
             "python": ".".join([str(s) for s in sys.version_info[:3]]),
             "max_histories": self._max_histories(),
-            "ensemble_name": self.__module__ + "." + self.__class__.__name__,
+            "ensemble_name": f"{self.__module__}.{self.__class__.__name__}",
             "policy_names": policy_names,
             "trained_at": self.date_trained,
         }
@@ -213,15 +202,14 @@ class PolicyEnsemble:
         self._persist_metadata(path, dump_flattened_stories)
 
         for i, policy in enumerate(self.policies):
-            dir_name = "policy_{}_{}".format(i, type(policy).__name__)
+            dir_name = f"policy_{i}_{type(policy).__name__}"
             policy_path = os.path.join(path, dir_name)
             policy.persist(policy_path)
 
     @classmethod
     def load_metadata(cls, path) -> Any:
         metadata_path = os.path.join(path, "metadata.json")
-        metadata = json.loads(rasa.utils.io.read_file(os.path.abspath(metadata_path)))
-        return metadata
+        return json.loads(rasa.utils.io.read_file(os.path.abspath(metadata_path)))
 
     @staticmethod
     def ensure_model_compatibility(metadata, version_to_check=None) -> None:
@@ -233,13 +221,7 @@ class PolicyEnsemble:
         model_version = metadata.get("rasa", "0.0.0")
         if version.parse(model_version) < version.parse(version_to_check):
             raise UnsupportedDialogueModelError(
-                "The model version is too old to be "
-                "loaded by this Rasa Core instance. "
-                "Either retrain the model, or run with "
-                "an older version. "
-                "Model version: {} Instance version: {} "
-                "Minimal compatible version: {}"
-                "".format(model_version, rasa.__version__, version_to_check),
+                f"The model version is too old to be loaded by this Rasa Core instance. Either retrain the model, or run with an older version. Model version: {model_version} Instance version: {rasa.__version__} Minimal compatible version: {version_to_check}",
                 model_version,
             )
 
@@ -249,9 +231,7 @@ class PolicyEnsemble:
             raise Exception(f"Failed to load policy {policy_name}: load returned None")
         elif not isinstance(policy, policy_cls):
             raise Exception(
-                "Failed to load policy {}: "
-                "load returned object that is not instance of its own class"
-                "".format(policy_name)
+                f"Failed to load policy {policy_name}: load returned object that is not instance of its own class"
             )
 
     @classmethod
@@ -270,8 +250,7 @@ class PolicyEnsemble:
             policies.append(policy)
         ensemble_cls = class_from_module_path(metadata["ensemble_name"])
         fingerprints = metadata.get("action_fingerprints", {})
-        ensemble = ensemble_cls(policies, fingerprints)
-        return ensemble
+        return ensemble_cls(policies, fingerprints)
 
     @classmethod
     def from_dict(cls, policy_configuration: Dict[Text, Any]) -> List[Policy]:
@@ -325,10 +304,7 @@ class PolicyEnsemble:
                 parsed_policies.append(policy_object)
             except (ImportError, AttributeError):
                 raise InvalidPolicyConfig(
-                    "Module for policy '{}' could not "
-                    "be loaded. Please make sure the "
-                    "name is a valid policy."
-                    "".format(policy_name)
+                    f"Module for policy '{policy_name}' could not be loaded. Please make sure the name is a valid policy."
                 )
 
         return parsed_policies
@@ -369,9 +345,9 @@ class PolicyEnsemble:
 class SimplePolicyEnsemble(PolicyEnsemble):
     @staticmethod
     def is_not_memo_policy(best_policy_name) -> bool:
-        is_memo = best_policy_name.endswith("_" + MemoizationPolicy.__name__)
+        is_memo = best_policy_name.endswith(f"_{MemoizationPolicy.__name__}")
         is_augmented = best_policy_name.endswith(
-            "_" + AugmentedMemoizationPolicy.__name__
+            f"_{AugmentedMemoizationPolicy.__name__}"
         )
         return not (is_memo or is_augmented)
 
@@ -399,7 +375,7 @@ class SimplePolicyEnsemble(PolicyEnsemble):
             if (confidence, p.priority) > (max_confidence, best_policy_priority):
                 max_confidence = confidence
                 result = probabilities
-                best_policy_name = "policy_{}_{}".format(i, type(p).__name__)
+                best_policy_name = f"policy_{i}_{type(p).__name__}"
                 best_policy_priority = p.priority
 
         if (
@@ -409,33 +385,19 @@ class SimplePolicyEnsemble(PolicyEnsemble):
             and tracker.latest_action_name == ACTION_LISTEN_NAME
             and self.is_not_memo_policy(best_policy_name)
         ):
-            # Trigger the fallback policy when ActionListen is predicted after
-            # a user utterance. This is done on the condition that:
-            # - a fallback policy is present,
-            # - there was just a user message and the predicted
-            #   action is action_listen by a policy
-            #   other than the MemoizationPolicy
-
-            fallback_idx_policy = [
+            if fallback_idx_policy := [
                 (i, p)
                 for i, p in enumerate(self.policies)
                 if isinstance(p, FallbackPolicy)
-            ]
-
-            if fallback_idx_policy:
+            ]:
                 fallback_idx, fallback_policy = fallback_idx_policy[0]
 
                 logger.debug(
-                    "Action 'action_listen' was predicted after "
-                    "a user message using {}. "
-                    "Predicting fallback action: {}"
-                    "".format(best_policy_name, fallback_policy.fallback_action_name)
+                    f"Action 'action_listen' was predicted after a user message using {best_policy_name}. Predicting fallback action: {fallback_policy.fallback_action_name}"
                 )
 
                 result = fallback_policy.fallback_scores(domain)
-                best_policy_name = "policy_{}_{}".format(
-                    fallback_idx, type(fallback_policy).__name__
-                )
+                best_policy_name = f"policy_{fallback_idx}_{type(fallback_policy).__name__}"
 
         logger.debug(f"Predicted next action using {best_policy_name}")
         return result, best_policy_name

@@ -36,13 +36,11 @@ def print_train_or_instructions(args: argparse.Namespace, path: Text) -> None:
 
     print_success("Finished creating project structure.")
 
-    should_train = (
+    if should_train := (
         questionary.confirm("Do you want to train an initial model? 💪🏽")
         .skip_if(args.no_prompt, default=True)
         .ask()
-    )
-
-    if should_train:
+    ):
         print_success("Training an initial model...")
         config = os.path.join(path, DEFAULT_CONFIG_PATH)
         training_files = os.path.join(path, DEFAULT_DATA_PATH)
@@ -65,15 +63,13 @@ def print_run_or_instructions(args: argparse.Namespace, path: Text) -> None:
     from rasa.core import constants
     import questionary
 
-    should_run = (
+    if should_run := (
         questionary.confirm(
             "Do you want to speak to the trained assistant on the command line? 🤖"
         )
         .skip_if(args.no_prompt, default=False)
         .ask()
-    )
-
-    if should_run:
+    ):
         # provide defaults for command line arguments
         attributes = [
             "endpoints",
@@ -91,27 +87,26 @@ def print_run_or_instructions(args: argparse.Namespace, path: Text) -> None:
         args.port = constants.DEFAULT_SERVER_PORT
 
         shell(args)
+    elif args.no_prompt:
+        print(
+            "If you want to speak to the assistant, "
+            "run 'rasa shell' at any time inside "
+            "the project directory."
+            "".format(path)
+        )
     else:
-        if args.no_prompt:
-            print(
-                "If you want to speak to the assistant, "
-                "run 'rasa shell' at any time inside "
-                "the project directory."
-                "".format(path)
-            )
-        else:
-            print_success(
-                "Ok 👍🏼. "
-                "If you want to speak to the assistant, "
-                "run 'rasa shell' at any time inside "
-                "the project directory."
-                "".format(path)
-            )
+        print_success(
+            "Ok 👍🏼. "
+            "If you want to speak to the assistant, "
+            "run 'rasa shell' at any time inside "
+            "the project directory."
+            "".format(path)
+        )
 
 
 def init_project(args: argparse.Namespace, path: Text) -> None:
     create_initial_project(path)
-    print("Created project directory at '{}'.".format(os.path.abspath(path)))
+    print(f"Created project directory at '{os.path.abspath(path)}'.")
     print_train_or_instructions(args, path)
 
 
@@ -135,10 +130,9 @@ def print_cancel() -> None:
 def _ask_create_path(path: Text) -> None:
     import questionary
 
-    should_create = questionary.confirm(
+    if should_create := questionary.confirm(
         f"Path '{path}' does not exist 🧐. Create path?"
-    ).ask()
-    if should_create:
+    ).ask():
         os.makedirs(path)
     else:
         print_success("Ok. You can continue setting up by running " "'rasa init' 🙋🏽‍♀️")
@@ -149,7 +143,7 @@ def _ask_overwrite(path: Text) -> None:
     import questionary
 
     overwrite = questionary.confirm(
-        "Directory '{}' is not empty. Continue?".format(os.path.abspath(path))
+        f"Directory '{os.path.abspath(path)}' is not empty. Continue?"
     ).ask()
     if not overwrite:
         print_cancel()
@@ -161,18 +155,11 @@ def run(args: argparse.Namespace) -> None:
     print_success("Welcome to Rasa! 🤖\n")
     if args.no_prompt:
         print(
-            "To get started quickly, an "
-            "initial project will be created.\n"
-            "If you need some help, check out "
-            "the documentation at {}.\n".format(DOCS_BASE_URL)
+            f"To get started quickly, an initial project will be created.\nIf you need some help, check out the documentation at {DOCS_BASE_URL}.\n"
         )
     else:
         print(
-            "To get started quickly, an "
-            "initial project will be created.\n"
-            "If you need some help, check out "
-            "the documentation at {}.\n"
-            "Now let's start! 👇🏽\n".format(DOCS_BASE_URL)
+            f"To get started quickly, an initial project will be created.\nIf you need some help, check out the documentation at {DOCS_BASE_URL}.\nNow let's start! 👇🏽\n"
         )
 
     path = (

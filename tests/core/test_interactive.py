@@ -170,9 +170,7 @@ async def test_print_history(mock_endpoint):
 
     sender_id = uuid.uuid4().hex
 
-    url = "{}/conversations/{}/tracker?include_events=AFTER_RESTART".format(
-        mock_endpoint.url, sender_id
-    )
+    url = f"{mock_endpoint.url}/conversations/{sender_id}/tracker?include_events=AFTER_RESTART"
     with aioresponses() as mocked:
         mocked.get(url, body=tracker_dump, headers={"Accept": "application/json"})
 
@@ -186,9 +184,7 @@ async def test_is_listening_for_messages(mock_endpoint):
 
     sender_id = uuid.uuid4().hex
 
-    url = "{}/conversations/{}/tracker?include_events=APPLIED".format(
-        mock_endpoint.url, sender_id
-    )
+    url = f"{mock_endpoint.url}/conversations/{sender_id}/tracker?include_events=APPLIED"
     with aioresponses() as mocked:
         mocked.get(url, body=tracker_dump, headers={"Content-Type": "application/json"})
 
@@ -278,12 +274,8 @@ async def test_undo_latest_msg(mock_endpoint):
 
     sender_id = uuid.uuid4().hex
 
-    url = "{}/conversations/{}/tracker?include_events=ALL".format(
-        mock_endpoint.url, sender_id
-    )
-    append_url = "{}/conversations/{}/tracker/events".format(
-        mock_endpoint.url, sender_id
-    )
+    url = f"{mock_endpoint.url}/conversations/{sender_id}/tracker?include_events=ALL"
+    append_url = f"{mock_endpoint.url}/conversations/{sender_id}/tracker/events"
     with aioresponses() as mocked:
         mocked.get(url, body=tracker_dump)
         mocked.post(append_url)
@@ -357,11 +349,9 @@ async def test_filter_intents_before_save_nlu_file():
 
     domain_file = DEFAULT_DOMAIN_PATH_WITH_SLOTS
     domain = Domain.load(domain_file)
-    intents = domain.intents
-
     msgs = test_msgs.copy()
-    if intents:
-        msgs.append(Message("/" + choice(intents), greet))
+    if intents := domain.intents:
+        msgs.append(Message(f"/{choice(intents)}", greet))
 
     assert test_msgs == interactive._filter_messages(msgs)
 

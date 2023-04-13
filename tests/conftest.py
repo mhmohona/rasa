@@ -138,13 +138,11 @@ async def trained_rasa_model(
     default_nlu_data: Text,
     default_stories_file: Text,
 ) -> Text:
-    trained_stack_model_path = await trained_async(
+    return await trained_async(
         domain="data/test_domains/default.yml",
         config=DEFAULT_STACK_CONFIG,
         training_files=[default_nlu_data, default_stories_file],
     )
-
-    return trained_stack_model_path
 
 
 @pytest.fixture()
@@ -155,13 +153,11 @@ async def trained_core_model(
     default_nlu_data: Text,
     default_stories_file: Text,
 ) -> Text:
-    trained_core_model_path = await trained_async(
+    return await trained_async(
         domain=default_domain_path,
         config=DEFAULT_STACK_CONFIG,
         training_files=[default_stories_file],
     )
-
-    return trained_core_model_path
 
 
 @pytest.fixture()
@@ -172,13 +168,11 @@ async def trained_nlu_model(
     default_nlu_data: Text,
     default_stories_file: Text,
 ) -> Text:
-    trained_nlu_model_path = await trained_async(
+    return await trained_async(
         domain=default_domain_path,
         config=DEFAULT_STACK_CONFIG,
         training_files=[default_nlu_data],
     )
-
-    return trained_nlu_model_path
 
 
 @pytest.fixture

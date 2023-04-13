@@ -162,7 +162,7 @@ def obtain_verbosity() -> int:
     verbosity = 0
     if log_level == "DEBUG":
         verbosity = 2
-    if log_level == "INFO":
+    elif log_level == "INFO":
         verbosity = 1
 
     return verbosity
@@ -172,7 +172,7 @@ def is_logging_disabled() -> bool:
     """Returns true, if log level is set to WARNING or ERROR, false otherwise."""
     log_level = os.environ.get(ENV_LOG_LEVEL, DEFAULT_LOG_LEVEL)
 
-    return log_level == "ERROR" or log_level == "WARNING"
+    return log_level in ["ERROR", "WARNING"]
 
 
 def sort_list_of_dicts_by_first_key(dicts: List[Dict]) -> List[Dict]:
@@ -262,10 +262,7 @@ def read_global_config_value(name: Text, unavailable_ok: bool = True) -> Any:
 
     c = read_global_config()
 
-    if name in c:
-        return c[name]
-    else:
-        return not_found()
+    return c[name] if name in c else not_found()
 
 
 def mark_as_experimental_feature(feature_name: Text) -> None:
@@ -286,7 +283,7 @@ def lazy_property(function: Callable) -> Any:
     will happen once, on the first call of the property. All
     succeeding calls will use the value stored in the private property."""
 
-    attr_name = "_lazy_" + function.__name__
+    attr_name = f"_lazy_{function.__name__}"
 
     @property
     def _lazyprop(self):

@@ -12,7 +12,7 @@ def transform_entity_synonyms(
     synonyms, known_synonyms: Optional[Dict[Text, Any]] = None
 ) -> Dict[Text, Any]:
     """Transforms the entity synonyms into a text->value dictionary"""
-    entity_synonyms = known_synonyms if known_synonyms else {}
+    entity_synonyms = known_synonyms or {}
     for s in synonyms:
         if "value" in s and "synonyms" in s:
             for synonym in s["synonyms"]:

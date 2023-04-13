@@ -49,10 +49,10 @@ def create_label_ids(label_ids: "np.ndarray") -> "np.ndarray":
     if label_ids.ndim == 1:
         return label_ids
 
-    if label_ids.ndim == 2 and label_ids.shape[-1] == 1:
-        return label_ids[:, 0]
-
     if label_ids.ndim == 2:
+        if label_ids.shape[-1] == 1:
+            return label_ids[:, 0]
+
         return np.array([" ".join(row.astype("str")) for row in label_ids])
 
     if label_ids.ndim == 3 and label_ids.shape[-1] == 1:
@@ -285,7 +285,7 @@ def get_number_of_examples(session_data: SessionDataType) -> int:
     example_lengths = [v.shape[0] for values in session_data.values() for v in values]
 
     # check if number of examples is the same for all values
-    if not all(length == example_lengths[0] for length in example_lengths):
+    if any(length != example_lengths[0] for length in example_lengths):
         raise ValueError(
             f"Number of examples differs for keys '{session_data.keys()}'. Number of "
             f"examples should be the same for all data in session data."
@@ -365,7 +365,7 @@ def scipy_matrix_to_values(array_of_sparse: np.ndarray) -> List[np.ndarray]:
     if not isinstance(array_of_sparse[0], scipy.sparse.coo_matrix):
         array_of_sparse = [x.tocoo() for x in array_of_sparse]
 
-    max_seq_len = max([x.shape[0] for x in array_of_sparse])
+    max_seq_len = max(x.shape[0] for x in array_of_sparse)
 
     indices = np.hstack(
         [
@@ -391,7 +391,7 @@ def pad_dense_data(array_of_dense: np.ndarray) -> np.ndarray:
         return array_of_dense
 
     data_size = len(array_of_dense)
-    max_seq_len = max([x.shape[0] for x in array_of_dense])
+    max_seq_len = max(x.shape[0] for x in array_of_dense)
 
     data_padded = np.zeros(
         [data_size, max_seq_len, array_of_dense[0].shape[-1]],
@@ -545,7 +545,7 @@ def tf_dense_layer_for_sparse(
     if not isinstance(inputs, tf.SparseTensor):
         raise ValueError("Input tensor should be sparse.")
 
-    with tf.variable_scope("dense_layer_for_sparse_" + name, reuse=tf.AUTO_REUSE):
+    with tf.variable_scope(f"dense_layer_for_sparse_{name}", reuse=tf.AUTO_REUSE):
         kernel_regularizer = tf.contrib.layers.l2_regularizer(C2)
         kernel = tf.get_variable(
             "kernel",
@@ -569,10 +569,7 @@ def tf_dense_layer_for_sparse(
         if use_bias:
             outputs = tf.nn.bias_add(outputs, bias)
 
-    if activation is None:
-        return outputs
-
-    return activation(outputs)
+    return outputs if activation is None else activation(outputs)
 
 
 # noinspection PyPep8Naming
@@ -975,10 +972,7 @@ def tf_loss_softmax(
     if scale_loss:
         # mask loss by prediction confidence
         pred = tf.nn.softmax(logits)
-        if len(pred.shape) == 3:
-            pos_pred = pred[:, :, 0]
-        else:  # len(pred.shape) == 2
-            pos_pred = pred[:, 0]
+        pos_pred = pred[:, :, 0] if len(pred.shape) == 3 else pred[:, 0]
         mask *= tf.pow((1 - pos_pred) / 0.5, 4)
 
     loss = tf.losses.softmax_cross_entropy(labels, logits, mask)
@@ -1093,12 +1087,7 @@ def calculate_loss_acc(
 
 
 def confidence_from_sim(sim: "tf.Tensor", similarity_type: Text) -> "tf.Tensor":
-    if similarity_type == "cosine":
-        # clip negative values to zero
-        return tf.nn.relu(sim)
-    else:
-        # normalize result to [0, 1] with softmax
-        return tf.nn.softmax(sim)
+    return tf.nn.relu(sim) if similarity_type == "cosine" else tf.nn.softmax(sim)
 
 
 def linearly_increasing_batch_size(
@@ -1216,9 +1205,7 @@ def train_tf_dataset(
                     ep_batch_size,
                 )
 
-            postfix_dict.update(
-                {"val_loss": f"{val_loss:.3f}", "val_acc": f"{val_acc:.3f}"}
-            )
+            postfix_dict |= {"val_loss": f"{val_loss:.3f}", "val_acc": f"{val_acc:.3f}"}
 
         pbar.set_postfix(postfix_dict)
 
@@ -1236,14 +1223,13 @@ def train_tf_dataset(
 def extract_attention(attention_weights) -> Optional["tf.Tensor"]:
     """Extract attention probabilities from t2t dict"""
 
-    attention = [
+    if attention := [
         tf.expand_dims(t, 0)
         for name, t in attention_weights.items()
         # the strings come from t2t library
-        if "multihead_attention/dot_product" in name and not name.endswith("/logits")
-    ]
-
-    if attention:
+        if "multihead_attention/dot_product" in name
+        and not name.endswith("/logits")
+    ]:
         return tf.concat(attention, 0)
 
 
@@ -1256,7 +1242,7 @@ def persist_tensor(
 
     if tensor is not None:
         graph.clear_collection(name)
-        if isinstance(tensor, tuple) or isinstance(tensor, list):
+        if isinstance(tensor, (tuple, list)):
             for t in tensor:
                 graph.add_to_collection(name, t)
         else:
@@ -1266,12 +1252,7 @@ def persist_tensor(
 def load_tensor(name: Text) -> Optional[Union["tf.Tensor", List["tf.Tensor"]]]:
     """Load tensor or set it to None"""
 
-    tensor_list = tf.get_collection(name)
-
-    if not tensor_list:
+    if tensor_list := tf.get_collection(name):
+        return tensor_list[0] if len(tensor_list) == 1 else tensor_list
+    else:
         return None
-
-    if len(tensor_list) == 1:
-        return tensor_list[0]
-
-    return tensor_list

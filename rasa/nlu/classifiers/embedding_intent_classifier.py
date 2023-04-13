@@ -269,10 +269,7 @@ class EmbeddingIntentClassifier(Component):
     def _find_example_for_label(
         label: Text, examples: List["Message"], attribute: Text
     ) -> Optional["Message"]:
-        for ex in examples:
-            if ex.get(attribute) == label:
-                return ex
-        return None
+        return next((ex for ex in examples if ex.get(attribute) == label), None)
 
     @staticmethod
     def _check_labels_features_exist(
@@ -280,13 +277,13 @@ class EmbeddingIntentClassifier(Component):
     ) -> bool:
         """Check if all labels have features set"""
 
-        for label_example in labels_example:
-            if (
+        return not any(
+            (
                 label_example.get(SPARSE_FEATURE_NAMES[attribute]) is None
                 and label_example.get(DENSE_FEATURE_NAMES[attribute]) is None
-            ):
-                return False
-        return True
+            )
+            for label_example in labels_example
+        )
 
     @staticmethod
     def _extract_and_add_features(
@@ -301,12 +298,15 @@ class EmbeddingIntentClassifier(Component):
         if message.get(DENSE_FEATURE_NAMES[attribute]) is not None:
             dense_features = message.get(DENSE_FEATURE_NAMES[attribute])
 
-        if sparse_features is not None and dense_features is not None:
-            if sparse_features.shape[0] != dense_features.shape[0]:
-                raise ValueError(
-                    f"Sequence dimensions for sparse and dense features "
-                    f"don't coincide in '{message.text}' for attribute '{attribute}'."
-                )
+        if (
+            sparse_features is not None
+            and dense_features is not None
+            and sparse_features.shape[0] != dense_features.shape[0]
+        ):
+            raise ValueError(
+                f"Sequence dimensions for sparse and dense features "
+                f"don't coincide in '{message.text}' for attribute '{attribute}'."
+            )
 
         return sparse_features, dense_features
 
@@ -515,13 +515,10 @@ class EmbeddingIntentClassifier(Component):
     ) -> tf.Tensor:
         dense_features = []
 
-        dense_dim = self.dense_dim[name]
-        # if dense features are present use the feature dimension of the dense features
-        for f in features:
-            if not isinstance(f, tf.SparseTensor):
-                dense_dim = f.shape[-1]
-                break
-
+        dense_dim = next(
+            (f.shape[-1] for f in features if not isinstance(f, tf.SparseTensor)),
+            self.dense_dim[name],
+        )
         for f in features:
             if isinstance(f, tf.SparseTensor):
                 dense_features.append(
@@ -597,10 +594,7 @@ class EmbeddingIntentClassifier(Component):
 
         shapes, types = train_utils.get_shapes_types(session_data)
 
-        batch_placeholder = []
-        for s, t in zip(shapes, types):
-            batch_placeholder.append(tf.placeholder(t, s))
-
+        batch_placeholder = [tf.placeholder(t, s) for s, t in zip(shapes, types)]
         self.batch_in = tf.tuple(batch_placeholder)
 
         batch_data, self.batch_tuple_sizes = train_utils.batch_to_session_data(
@@ -644,11 +638,7 @@ class EmbeddingIntentClassifier(Component):
 
     @staticmethod
     def _get_num_of_features(session_data: "SessionDataType", key: Text) -> int:
-        num_features = 0
-        for data in session_data[key]:
-            if data.size > 0:
-                num_features += data[0].shape[-1]
-        return num_features
+        return sum(data[0].shape[-1] for data in session_data[key] if data.size > 0)
 
     def check_input_dimension_consistency(self, session_data: "SessionDataType"):
         """Check if text features and intent features have the same dimension."""
@@ -858,7 +848,7 @@ class EmbeddingIntentClassifier(Component):
         if self.session is None:
             return {"file": None}
 
-        checkpoint = os.path.join(model_dir, file_name + ".ckpt")
+        checkpoint = os.path.join(model_dir, f"{file_name}.ckpt")
 
         try:
             os.makedirs(os.path.dirname(checkpoint))
@@ -886,17 +876,13 @@ class EmbeddingIntentClassifier(Component):
             saver = tf.train.Saver()
             saver.save(self.session, checkpoint)
 
-        with open(
-            os.path.join(model_dir, file_name + ".inv_label_dict.pkl"), "wb"
-        ) as f:
+        with open(os.path.join(model_dir, f"{file_name}.inv_label_dict.pkl"), "wb") as f:
             pickle.dump(self.inverted_label_dict, f)
 
-        with open(os.path.join(model_dir, file_name + ".tf_config.pkl"), "wb") as f:
+        with open(os.path.join(model_dir, f"{file_name}.tf_config.pkl"), "wb") as f:
             pickle.dump(self._tf_config, f)
 
-        with open(
-            os.path.join(model_dir, file_name + ".batch_tuple_sizes.pkl"), "wb"
-        ) as f:
+        with open(os.path.join(model_dir, f"{file_name}.batch_tuple_sizes.pkl"), "wb") as f:
             pickle.dump(self.batch_tuple_sizes, f)
 
         return {"file": file_name}
@@ -914,15 +900,15 @@ class EmbeddingIntentClassifier(Component):
 
         if model_dir and meta.get("file"):
             file_name = meta.get("file")
-            checkpoint = os.path.join(model_dir, file_name + ".ckpt")
+            checkpoint = os.path.join(model_dir, f"{file_name}.ckpt")
 
-            with open(os.path.join(model_dir, file_name + ".tf_config.pkl"), "rb") as f:
+            with open(os.path.join(model_dir, f"{file_name}.tf_config.pkl"), "rb") as f:
                 _tf_config = pickle.load(f)
 
             graph = tf.Graph()
             with graph.as_default():
                 session = tf.compat.v1.Session(config=_tf_config)
-                saver = tf.compat.v1.train.import_meta_graph(checkpoint + ".meta")
+                saver = tf.compat.v1.train.import_meta_graph(f"{checkpoint}.meta")
 
                 saver.restore(session, checkpoint)
 
@@ -936,14 +922,10 @@ class EmbeddingIntentClassifier(Component):
                 label_embed = train_utils.load_tensor("label_embed")
                 all_labels_embed = train_utils.load_tensor("all_labels_embed")
 
-            with open(
-                os.path.join(model_dir, file_name + ".inv_label_dict.pkl"), "rb"
-            ) as f:
+            with open(os.path.join(model_dir, f"{file_name}.inv_label_dict.pkl"), "rb") as f:
                 inv_label_dict = pickle.load(f)
 
-            with open(
-                os.path.join(model_dir, file_name + ".batch_tuple_sizes.pkl"), "rb"
-            ) as f:
+            with open(os.path.join(model_dir, f"{file_name}.batch_tuple_sizes.pkl"), "rb") as f:
                 batch_tuple_sizes = pickle.load(f)
 
             return cls(

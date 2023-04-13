@@ -161,10 +161,7 @@ def get_latest_model(model_path: Text = DEFAULT_MODELS_PATH) -> Optional[Text]:
 
     list_of_files = glob.glob(os.path.join(model_path, "*.tar.gz"))
 
-    if len(list_of_files) == 0:
-        return None
-
-    return max(list_of_files, key=os.path.getctime)
+    return max(list_of_files, key=os.path.getctime) if list_of_files else None
 
 
 def unpack_model(
@@ -221,14 +218,12 @@ def get_model_subdirectories(
     if not os.path.isdir(nlu_path):
         nlu_path = None
 
-    if not core_path and not nlu_path:
+    if core_path or nlu_path:
+        return core_path, nlu_path
+    else:
         raise ModelNotFound(
-            "No NLU or Core data for unpacked model at: '{}'.".format(
-                unpacked_model_path
-            )
+            f"No NLU or Core data for unpacked model at: '{unpacked_model_path}'."
         )
-
-    return core_path, nlu_path
 
 
 def create_package_rasa(
@@ -464,9 +459,7 @@ def package_model(
     create_package_rasa(train_path, output_directory, fingerprint)
 
     print_success(
-        "Your Rasa model is trained and saved at '{}'.".format(
-            os.path.abspath(output_directory)
-        )
+        f"Your Rasa model is trained and saved at '{os.path.abspath(output_directory)}'."
     )
 
     return output_directory

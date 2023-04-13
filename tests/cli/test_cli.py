@@ -12,7 +12,7 @@ def test_cli_start(run: Callable[..., RunResult]):
 
     durations = []
 
-    for i in range(5):
+    for _ in range(5):
         start = time.time()
         run("--help")
         end = time.time()
@@ -22,7 +22,7 @@ def test_cli_start(run: Callable[..., RunResult]):
     avg_duration = sum(durations) / len(durations)
 
     # When run in parallel, it takes a little longer
-    assert avg_duration - 5 <= 2
+    assert avg_duration <= 7
 
 
 def test_data_convert_help(run: Callable[..., RunResult]):

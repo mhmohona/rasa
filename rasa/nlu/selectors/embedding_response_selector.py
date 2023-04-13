@@ -162,11 +162,7 @@ class ResponseSelector(EmbeddingIntentClassifier):
 
         label, label_ranking = self.predict_label(message)
 
-        selector_key = (
-            self.retrieval_intent
-            if self.retrieval_intent
-            else DEFAULT_OPEN_UTTERANCE_TYPE
-        )
+        selector_key = self.retrieval_intent or DEFAULT_OPEN_UTTERANCE_TYPE
 
         logger.debug(
             f"Adding following selector key to message property: {selector_key}"

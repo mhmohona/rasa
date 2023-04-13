@@ -139,12 +139,14 @@ class Validator:
                 everything_is_alright = ignore_warnings and everything_is_alright
 
         for action in actions:
-            if action.startswith(UTTER_PREFIX):
-                if action not in utterance_templates:
-                    warnings.warn(
-                        f"There is no template for utterance '{action}'.", stacklevel=2
-                    )
-                    everything_is_alright = False
+            if (
+                action.startswith(UTTER_PREFIX)
+                and action not in utterance_templates
+            ):
+                warnings.warn(
+                    f"There is no template for utterance '{action}'.", stacklevel=2
+                )
+                everything_is_alright = False
 
         return everything_is_alright
 

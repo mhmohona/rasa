@@ -773,9 +773,8 @@ def test_load_model_from_model_server(rasa_app: SanicTestClient, trained_core_mo
     endpoint = EndpointConfig("https://example.com/model/trained_core_model")
     with open(trained_core_model, "rb") as f:
         with aioresponses(passthrough=["http://127.0.0.1"]) as mocked:
-            headers = {}
             fs = os.fstat(f.fileno())
-            headers["Content-Length"] = str(fs[6])
+            headers = {"Content-Length": str(fs[6])}
             mocked.get(
                 "https://example.com/model/trained_core_model",
                 content_type="application/x-tar",

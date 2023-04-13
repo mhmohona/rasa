@@ -58,7 +58,7 @@ def test_remove_expired_tickets():
     lock = TicketLock("random id 1")
 
     # issue one long- and one short-lived ticket
-    _ = list(map(lock.issue_ticket, [k for k in [0.01, 10]]))
+    _ = list(map(lock.issue_ticket, [0.01, 10]))
 
     # both tickets are there
     assert len(lock.tickets) == 2

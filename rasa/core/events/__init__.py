@@ -30,8 +30,7 @@ def deserialise_events(serialized_events: List[Dict[Text, Any]]) -> List["Event"
 
     for e in serialized_events:
         if "event" in e:
-            event = Event.from_parameters(e)
-            if event:
+            if event := Event.from_parameters(e):
                 deserialised.append(event)
             else:
                 logger.warning(
@@ -65,7 +64,7 @@ def md_format_message(text, intent, entities) -> Text:
 
 def first_key(d: Dict[Text, Any], default_key: Any) -> Any:
     if len(d) > 1:
-        for k, v in d.items():
+        for k in d:
             if k != default_key:
                 # we return the first key that is not the default key
                 return k
@@ -119,10 +118,7 @@ class Event:
     ) -> Optional[List["Event"]]:
         event_class = Event.resolve_by_type(event_name, default)
 
-        if not event_class:
-            return None
-
-        return event_class._from_story_string(parameters)
+        return event_class._from_story_string(parameters) if event_class else None
 
     @staticmethod
     def from_parameters(
@@ -134,10 +130,7 @@ class Event:
             return None
 
         event_class: Type[Event] = Event.resolve_by_type(event_name, default)
-        if not event_class:
-            return None
-
-        return event_class._from_parameters(parameters)
+        return event_class._from_parameters(parameters) if event_class else None
 
     @classmethod
     def _from_story_string(cls, parameters: Dict[Text, Any]) -> Optional[List["Event"]]:
@@ -212,23 +205,20 @@ class UserUttered(Event):
         metadata: Optional[Dict] = None,
     ):
         self.text = text
-        self.intent = intent if intent else {}
-        self.entities = entities if entities else []
+        self.intent = intent or {}
+        self.entities = entities or []
         self.input_channel = input_channel
         self.message_id = message_id
 
         super().__init__(timestamp, metadata)
 
-        if parse_data:
-            self.parse_data = parse_data
-        else:
-            self.parse_data = {
-                "intent": self.intent,
-                "entities": self.entities,
-                "text": text,
-                "message_id": self.message_id,
-                "metadata": self.metadata,
-            }
+        self.parse_data = parse_data or {
+            "intent": self.intent,
+            "entities": self.entities,
+            "text": text,
+            "message_id": self.message_id,
+            "metadata": self.metadata,
+        }
 
     @staticmethod
     def _from_parse_data(
@@ -256,23 +246,23 @@ class UserUttered(Event):
         )
 
     def __eq__(self, other) -> bool:
-        if not isinstance(other, UserUttered):
-            return False
-        else:
-            return (
+        return (
+            (
                 self.text,
                 self.intent.get("name"),
                 [jsonpickle.encode(ent) for ent in self.entities],
-            ) == (
+            )
+            == (
                 other.text,
                 other.intent.get("name"),
                 [jsonpickle.encode(ent) for ent in other.entities],
             )
+            if isinstance(other, UserUttered)
+            else False
+        )
 
     def __str__(self) -> Text:
-        return "UserUttered(text: {}, intent: {}, entities: {})".format(
-            self.text, self.intent, self.entities
-        )
+        return f"UserUttered(text: {self.text}, intent: {self.intent}, entities: {self.entities})"
 
     @staticmethod
     def empty() -> "UserUttered":
@@ -308,25 +298,23 @@ class UserUttered(Event):
             raise ValueError(f"Failed to parse bot uttered event. {e}")
 
     def as_story_string(self, e2e: bool = False) -> Text:
-        if self.intent:
-            if self.entities:
-                ent_string = json.dumps(
+        if not self.intent:
+            return self.text
+        if e2e:
+            message = md_format_message(self.text, self.intent, self.entities)
+            return f'{self.intent.get("name")}: {message}'
+        else:
+            ent_string = (
+                json.dumps(
                     {ent["entity"]: ent["value"] for ent in self.entities},
                     ensure_ascii=False,
                 )
-            else:
-                ent_string = ""
-
-            parse_string = "{intent}{entities}".format(
+                if self.entities
+                else ""
+            )
+            return "{intent}{entities}".format(
                 intent=self.intent.get("name", ""), entities=ent_string
             )
-            if e2e:
-                message = md_format_message(self.text, self.intent, self.entities)
-                return "{}: {}".format(self.intent.get("name"), message)
-            else:
-                return parse_string
-        else:
-            return self.text
 
     def apply_to(self, tracker: "DialogueStateTracker") -> None:
         tracker.latest_message = self
@@ -361,20 +349,17 @@ class BotUttered(Event):
         return hash(self.__members())
 
     def __eq__(self, other) -> bool:
-        if not isinstance(other, BotUttered):
-            return False
-        else:
-            return self.__members() == other.__members()
+        return (
+            self.__members() == other.__members()
+            if isinstance(other, BotUttered)
+            else False
+        )
 
     def __str__(self) -> Text:
-        return "BotUttered(text: {}, data: {}, metadata: {})".format(
-            self.text, json.dumps(self.data), json.dumps(self.metadata)
-        )
+        return f"BotUttered(text: {self.text}, data: {json.dumps(self.data)}, metadata: {json.dumps(self.metadata)})"
 
     def __repr__(self) -> Text:
-        return "BotUttered('{}', {}, {}, {})".format(
-            self.text, json.dumps(self.data), json.dumps(self.metadata), self.timestamp
-        )
+        return f"BotUttered('{self.text}', {json.dumps(self.data)}, {json.dumps(self.metadata)}, {self.timestamp})"
 
     def apply_to(self, tracker: "DialogueStateTracker") -> None:
 
@@ -452,10 +437,11 @@ class SlotSet(Event):
         return hash((self.key, jsonpickle.encode(self.value)))
 
     def __eq__(self, other) -> bool:
-        if not isinstance(other, SlotSet):
-            return False
-        else:
-            return (self.key, self.value) == (other.key, other.value)
+        return (
+            (self.key, self.value) == (other.key, other.value)
+            if isinstance(other, SlotSet)
+            else False
+        )
 
     def as_story_string(self) -> Text:
         props = json.dumps({self.key: self.value}, ensure_ascii=False)
@@ -464,14 +450,11 @@ class SlotSet(Event):
     @classmethod
     def _from_story_string(cls, parameters: Dict[Text, Any]) -> Optional[List[Event]]:
 
-        slots = []
-        for slot_key, slot_val in parameters.items():
-            slots.append(SlotSet(slot_key, slot_val))
-
-        if slots:
-            return slots
-        else:
-            return None
+        slots = [
+            SlotSet(slot_key, slot_val)
+            for slot_key, slot_val in parameters.items()
+        ]
+        return slots or None
 
     def as_dict(self) -> Dict[Text, Any]:
         d = super().as_dict()
@@ -627,17 +610,14 @@ class ReminderScheduled(Event):
         )
 
     def __eq__(self, other) -> bool:
-        if not isinstance(other, ReminderScheduled):
-            return False
-        else:
-            return self.name == other.name
+        return (
+            self.name == other.name
+            if isinstance(other, ReminderScheduled)
+            else False
+        )
 
     def __str__(self) -> str:
-        return (
-            "ReminderScheduled("
-            "action: {}, trigger_date: {}, name: {}"
-            ")".format(self.action_name, self.trigger_date_time, self.name)
-        )
+        return f"ReminderScheduled(action: {self.action_name}, trigger_date: {self.trigger_date_time}, name: {self.name})"
 
     def _data_obj(self) -> Dict[Text, Any]:
         return {
@@ -807,10 +787,11 @@ class FollowupAction(Event):
         return hash(self.action_name)
 
     def __eq__(self, other) -> bool:
-        if not isinstance(other, FollowupAction):
-            return False
-        else:
-            return self.action_name == other.action_name
+        return (
+            self.action_name == other.action_name
+            if isinstance(other, FollowupAction)
+            else False
+        )
 
     def __str__(self) -> Text:
         return f"FollowupAction(action: {self.action_name})"
@@ -913,18 +894,17 @@ class ActionExecuted(Event):
         super().__init__(timestamp, metadata)
 
     def __str__(self) -> Text:
-        return "ActionExecuted(action: {}, policy: {}, confidence: {})".format(
-            self.action_name, self.policy, self.confidence
-        )
+        return f"ActionExecuted(action: {self.action_name}, policy: {self.policy}, confidence: {self.confidence})"
 
     def __hash__(self) -> int:
         return hash(self.action_name)
 
     def __eq__(self, other) -> bool:
-        if not isinstance(other, ActionExecuted):
-            return False
-        else:
-            return self.action_name == other.action_name
+        return (
+            self.action_name == other.action_name
+            if isinstance(other, ActionExecuted)
+            else False
+        )
 
     def as_story_string(self) -> Text:
         return self.action_name
@@ -944,13 +924,8 @@ class ActionExecuted(Event):
 
     def as_dict(self) -> Dict[Text, Any]:
         d = super().as_dict()
-        policy = None  # for backwards compatibility (persisted evemts)
-        if hasattr(self, "policy"):
-            policy = self.policy
-        confidence = None
-        if hasattr(self, "confidence"):
-            confidence = self.confidence
-
+        policy = self.policy if hasattr(self, "policy") else None
+        confidence = self.confidence if hasattr(self, "confidence") else None
         d.update({"name": self.action_name, "policy": policy, "confidence": confidence})
         return d
 
@@ -983,18 +958,18 @@ class AgentUttered(Event):
         return hash((self.text, jsonpickle.encode(self.data)))
 
     def __eq__(self, other) -> bool:
-        if not isinstance(other, AgentUttered):
-            return False
-        else:
-            return (self.text, jsonpickle.encode(self.data)) == (
+        return (
+            (self.text, jsonpickle.encode(self.data))
+            == (
                 other.text,
                 jsonpickle.encode(other.data),
             )
+            if isinstance(other, AgentUttered)
+            else False
+        )
 
     def __str__(self) -> Text:
-        return "AgentUttered(text: {}, data: {})".format(
-            self.text, json.dumps(self.data)
-        )
+        return f"AgentUttered(text: {self.text}, data: {json.dumps(self.data)})"
 
     def apply_to(self, tracker: "DialogueStateTracker") -> None:
 
@@ -1048,10 +1023,7 @@ class Form(Event):
         return hash(self.name)
 
     def __eq__(self, other) -> bool:
-        if not isinstance(other, Form):
-            return False
-        else:
-            return self.name == other.name
+        return self.name == other.name if isinstance(other, Form) else False
 
     def as_story_string(self) -> Text:
         props = json.dumps({"name": self.name})
@@ -1140,20 +1112,17 @@ class ActionExecutionRejected(Event):
         super().__init__(timestamp, metadata)
 
     def __str__(self) -> Text:
-        return (
-            "ActionExecutionRejected("
-            "action: {}, policy: {}, confidence: {})"
-            "".format(self.action_name, self.policy, self.confidence)
-        )
+        return f"ActionExecutionRejected(action: {self.action_name}, policy: {self.policy}, confidence: {self.confidence})"
 
     def __hash__(self) -> int:
         return hash(self.action_name)
 
     def __eq__(self, other) -> bool:
-        if not isinstance(other, ActionExecutionRejected):
-            return False
-        else:
-            return self.action_name == other.action_name
+        return (
+            self.action_name == other.action_name
+            if isinstance(other, ActionExecutionRejected)
+            else False
+        )
 
     @classmethod
     def _from_parameters(cls, parameters) -> "ActionExecutionRejected":

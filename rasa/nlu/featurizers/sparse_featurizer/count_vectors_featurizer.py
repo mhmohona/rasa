@@ -126,9 +126,7 @@ class CountVectorsFeaturizer(Featurizer):
         self.OOV_words = self.component_config["OOV_words"]
         if self.OOV_words and not self.OOV_token:
             logger.error(
-                "The list OOV_words={} was given, but "
-                "OOV_token was not. OOV words are ignored."
-                "".format(self.OOV_words)
+                f"The list OOV_words={self.OOV_words} was given, but OOV_token was not. OOV words are ignored."
             )
             self.OOV_words = []
 
@@ -325,14 +323,10 @@ class CountVectorsFeaturizer(Featurizer):
     def _convert_attribute_tokens_to_texts(
         attribute_tokens: Dict[Text, List[List[Text]]]
     ) -> Dict[Text, List[Text]]:
-        attribute_texts = {}
-
-        for attribute in attribute_tokens.keys():
-            attribute_texts[attribute] = [
-                " ".join(tokens) for tokens in attribute_tokens[attribute]
-            ]
-
-        return attribute_texts
+        return {
+            attribute: [" ".join(tokens) for tokens in attribute_tokens[attribute]]
+            for attribute in attribute_tokens
+        }
 
     def _train_with_shared_vocab(self, attribute_texts: Dict[Text, List[Text]]):
         """Construct the vectorizers and train them with a shared vocab"""
@@ -520,12 +514,10 @@ class CountVectorsFeaturizer(Featurizer):
     def _collect_vectorizer_vocabularies(self) -> Dict[Text, Optional[Dict[Text, int]]]:
         """Get vocabulary for all attributes"""
 
-        attribute_vocabularies = {}
-        for attribute in self._attributes:
-            attribute_vocabularies[attribute] = self._get_attribute_vocabulary(
-                attribute
-            )
-        return attribute_vocabularies
+        return {
+            attribute: self._get_attribute_vocabulary(attribute)
+            for attribute in self._attributes
+        }
 
     @staticmethod
     def _is_any_model_trained(attribute_vocabularies) -> bool:
@@ -539,7 +531,7 @@ class CountVectorsFeaturizer(Featurizer):
         Returns the metadata necessary to load the model again.
         """
 
-        file_name = file_name + ".pkl"
+        file_name = f"{file_name}.pkl"
 
         if self.vectorizers:
             # vectorizer instance was not None, some models could have been trained
@@ -578,12 +570,10 @@ class CountVectorsFeaturizer(Featurizer):
             vocabulary=vocabulary,
         )
 
-        attribute_vectorizers = {}
-
-        for attribute in cls._attributes_for(parameters["analyzer"]):
-            attribute_vectorizers[attribute] = shared_vectorizer
-
-        return attribute_vectorizers
+        return {
+            attribute: shared_vectorizer
+            for attribute in cls._attributes_for(parameters["analyzer"])
+        }
 
     @classmethod
     def _create_independent_vocab_vectorizers(

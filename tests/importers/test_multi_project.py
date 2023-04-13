@@ -79,7 +79,7 @@ def test_load_from_none(input_dict: Dict, tmpdir_factory: TempdirFactory):
 
     actual = MultiProjectImporter(str(config_path))
 
-    assert actual._imports == list()
+    assert actual._imports == []
 
 
 def test_load_if_subproject_is_more_specific_than_parent(
@@ -256,7 +256,7 @@ async def test_multi_project_training(trained_async):
         "mood_unhappy",
     }
 
-    assert all([i in domain.intents for i in expected_intents])
+    assert all(i in domain.intents for i in expected_intents)
 
     nlu_training_data_file = os.path.join(unpacked, "nlu", "training_data.json")
     nlu_training_data = RasaReader().read(nlu_training_data_file)
@@ -271,4 +271,4 @@ async def test_multi_project_training(trained_async):
         "utter_goodbye",
     ]
 
-    assert all([a in domain.action_names for a in expected_actions])
+    assert all(a in domain.action_names for a in expected_actions)

@@ -124,7 +124,7 @@ class KeywordIntentClassifier(Component):
         Return the metadata necessary to load the model again.
         """
 
-        file_name = file_name + ".json"
+        file_name = f"{file_name}.json"
         keyword_file = os.path.join(model_dir, file_name)
         utils.write_json_to_file(keyword_file, self.intent_keyword_map)
 
@@ -147,7 +147,6 @@ class KeywordIntentClassifier(Component):
                 intent_keyword_map = utils.read_json_file(keyword_file)
             else:
                 warnings.warn(
-                    f"Failed to load IntentKeywordClassifier, maybe "
-                    "{keyword_file} does not exist."
+                    'Failed to load IntentKeywordClassifier, maybe {keyword_file} does not exist.'
                 )
         return cls(meta, intent_keyword_map)

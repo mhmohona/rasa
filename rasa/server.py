@@ -122,9 +122,7 @@ def requires_auth(app: Sanic, token: Optional[Text] = None) -> Callable[[Any], A
                 sender_id_arg_idx = argnames.index("conversation_id")
                 if "conversation_id" in kwargs:  # try to fetch from kwargs first
                     return kwargs["conversation_id"]
-                if sender_id_arg_idx < len(args):
-                    return args[sender_id_arg_idx]
-                return None
+                return args[sender_id_arg_idx] if sender_id_arg_idx < len(args) else None
             except ValueError:
                 return None
 
@@ -203,8 +201,7 @@ def event_verbosity_parameter(
         raise ErrorResponse(
             400,
             "BadRequest",
-            "Invalid parameter value for 'include_events'. "
-            "Should be one of {}".format(enum_values),
+            f"Invalid parameter value for 'include_events'. Should be one of {enum_values}",
             {"parameter": "include_events", "in": "query"},
         )
 
@@ -364,7 +361,7 @@ def add_root_route(app: Sanic):
     @app.get("/")
     async def hello(request: Request):
         """Check if the server is running and responds with the version."""
-        return response.text("Hello from Rasa: " + rasa.__version__)
+        return response.text(f"Hello from Rasa: {rasa.__version__}")
 
 
 def create_app(

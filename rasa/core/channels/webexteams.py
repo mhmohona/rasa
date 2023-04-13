@@ -125,12 +125,11 @@ class WebexTeamsInput(InputChannel):
                 # Message was sent by me (bot); do not respond.
                 return response.text("OK")
 
-            else:
-                metadata = self.get_metadata(request)
-                await self.process_message(
-                    on_new_message, message.text, message.personId, metadata
-                )
-                return response.text("")
+            metadata = self.get_metadata(request)
+            await self.process_message(
+                on_new_message, message.text, message.personId, metadata
+            )
+            return response.text("")
 
         return webexteams_webhook
 

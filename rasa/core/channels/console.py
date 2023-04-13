@@ -26,7 +26,7 @@ DEFAULT_STREAM_READING_TIMEOUT_IN_SECONDS = 10
 def print_bot_output(
     message: Dict[Text, Any], color=cli_utils.bcolors.OKBLUE
 ) -> Optional[questionary.Question]:
-    if ("text" in message) and not ("buttons" in message):
+    if "text" in message and "buttons" not in message:
         cli_utils.print_color(message.get("text"), color=color)
 
     if "image" in message:
@@ -40,13 +40,13 @@ def print_bot_output(
             message, allow_free_text_input=True
         )
 
-        question = questionary.select(
+        return questionary.select(
             message.get("text"),
             choices,
-            style=Style([("qmark", "#6d91d3"), ("", "#6d91d3"), ("answer", "#b373d6")]),
+            style=Style(
+                [("qmark", "#6d91d3"), ("", "#6d91d3"), ("answer", "#b373d6")]
+            ),
         )
-        return question
-
     if "elements" in message:
         cli_utils.print_color("Elements:", color=color)
         for idx, element in enumerate(message.get("elements")):
@@ -117,11 +117,10 @@ async def record_messages(
 ) -> int:
     """Read messages from the command line and print bot responses."""
 
-    exit_text = INTENT_MESSAGE_PREFIX + "stop"
+    exit_text = f"{INTENT_MESSAGE_PREFIX}stop"
 
     cli_utils.print_success(
-        "Bot loaded. Type a message and press enter "
-        "(use '{}' to exit): ".format(exit_text)
+        f"Bot loaded. Type a message and press enter (use '{exit_text}' to exit): "
     )
 
     num_messages = 0

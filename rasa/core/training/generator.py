@@ -126,9 +126,7 @@ class TrackerWithCachedStates(DialogueStateTracker):
             elif isinstance(event, ActionReverted):
                 self._states.pop()  # removes the state after the action
                 self._states.pop()  # removes the state used for the action
-            elif isinstance(event, UserUtteranceReverted):
-                self.clear_states()
-            elif isinstance(event, Restarted):
+            elif isinstance(event, (UserUtteranceReverted, Restarted)):
                 self.clear_states()
             else:
                 self._states.pop()
@@ -192,9 +190,7 @@ class TrainingDataGenerator:
     def generate(self) -> List[TrackerWithCachedStates]:
         if self.config.remove_duplicates and self.config.unique_last_num_states:
             logger.debug(
-                "Generated trackers will be deduplicated "
-                "based on their unique last {} states."
-                "".format(self.config.unique_last_num_states)
+                f"Generated trackers will be deduplicated based on their unique last {self.config.unique_last_num_states} states."
             )
 
         self._mark_first_action_in_story_steps_as_unpredictable()
@@ -230,12 +226,9 @@ class TrainingDataGenerator:
         while not everything_reachable_is_reached or phase < min_num_aug_phases:
             phase_name = self._phase_name(everything_reachable_is_reached, phase)
 
-            num_active_trackers = self._count_trackers(active_trackers)
-
-            if num_active_trackers:
+            if num_active_trackers := self._count_trackers(active_trackers):
                 logger.debug(
-                    "Starting {} ... (with {} trackers)"
-                    "".format(phase_name, num_active_trackers)
+                    f"Starting {phase_name} ... (with {num_active_trackers} trackers)"
                 )
             else:
                 logger.debug(f"There are no trackers for {phase_name}")
@@ -346,20 +339,14 @@ class TrainingDataGenerator:
                         finished_trackers.extend(active_trackers[start_name])
 
                     logger.debug("Data generation rounds finished.")
-                    logger.debug(
-                        "Found {} unused checkpoints".format(len(previous_unused))
-                    )
+                    logger.debug(f"Found {len(previous_unused)} unused checkpoints")
                     phase = 0
                 else:
                     logger.debug(
-                        "Found {} unused checkpoints "
-                        "in current phase."
-                        "".format(len(unused_checkpoints))
+                        f"Found {len(unused_checkpoints)} unused checkpoints in current phase."
                     )
                     logger.debug(
-                        "Found {} active trackers "
-                        "for these checkpoints."
-                        "".format(num_active_trackers)
+                        f"Found {num_active_trackers} active trackers for these checkpoints."
                     )
 
             if everything_reachable_is_reached:
@@ -375,7 +362,7 @@ class TrainingDataGenerator:
 
         finished_trackers.extend(story_end_trackers)
         self._issue_unused_checkpoint_notification(previous_unused)
-        logger.debug("Found {} training trackers.".format(len(finished_trackers)))
+        logger.debug(f"Found {len(finished_trackers)} training trackers.")
 
         if self.config.augmentation_factor > 0:
             augmented_trackers, original_trackers = [], []
@@ -388,12 +375,9 @@ class TrainingDataGenerator:
                 augmented_trackers, self.config.max_number_of_augmented_trackers
             )
             logger.debug(
-                "Subsampled to {} augmented training trackers."
-                "".format(len(augmented_trackers))
+                f"Subsampled to {len(augmented_trackers)} augmented training trackers."
             )
-            logger.debug(
-                "There are {} original trackers.".format(len(original_trackers))
-            )
+            logger.debug(f"There are {len(original_trackers)} original trackers.")
             finished_trackers = original_trackers + augmented_trackers
 
         return finished_trackers
@@ -521,7 +505,7 @@ class TrainingDataGenerator:
                 # contribute to the trackers events
                 if tracker.sender_id:
                     if step.block_name not in tracker.sender_id.split(" > "):
-                        new_sender = tracker.sender_id + " > " + step.block_name
+                        new_sender = f"{tracker.sender_id} > {step.block_name}"
                     else:
                         new_sender = tracker.sender_id
                 else:

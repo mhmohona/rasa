@@ -84,11 +84,10 @@ class RestaurantForm(FormAction):
         if value.lower() in self.cuisine_db():
             # validation succeeded, set the value of the "cuisine" slot to value
             return {"cuisine": value}
-        else:
-            dispatcher.utter_message(template="utter_wrong_cuisine")
-            # validation failed, set this slot to None, meaning the
-            # user will be asked for the slot again
-            return {"cuisine": None}
+        dispatcher.utter_message(template="utter_wrong_cuisine")
+        # validation failed, set this slot to None, meaning the
+        # user will be asked for the slot again
+        return {"cuisine": None}
 
     def validate_num_people(
         self,
@@ -101,10 +100,9 @@ class RestaurantForm(FormAction):
 
         if self.is_int(value) and int(value) > 0:
             return {"num_people": value}
-        else:
-            dispatcher.utter_message(template="utter_wrong_num_people")
-            # validation failed, set slot to None
-            return {"num_people": None}
+        dispatcher.utter_message(template="utter_wrong_num_people")
+        # validation failed, set slot to None
+        return {"num_people": None}
 
     def validate_outdoor_seating(
         self,
@@ -115,21 +113,19 @@ class RestaurantForm(FormAction):
     ) -> Dict[Text, Any]:
         """Validate outdoor_seating value."""
 
-        if isinstance(value, str):
-            if "out" in value:
-                # convert "out..." to True
-                return {"outdoor_seating": True}
-            elif "in" in value:
-                # convert "in..." to False
-                return {"outdoor_seating": False}
-            else:
-                dispatcher.utter_message(template="utter_wrong_outdoor_seating")
-                # validation failed, set slot to None
-                return {"outdoor_seating": None}
-
-        else:
+        if not isinstance(value, str):
             # affirm/deny was picked up as T/F
             return {"outdoor_seating": value}
+        if "out" in value:
+            # convert "out..." to True
+            return {"outdoor_seating": True}
+        elif "in" in value:
+            # convert "in..." to False
+            return {"outdoor_seating": False}
+        else:
+            dispatcher.utter_message(template="utter_wrong_outdoor_seating")
+            # validation failed, set slot to None
+            return {"outdoor_seating": None}
 
     def submit(
         self,

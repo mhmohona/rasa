@@ -30,7 +30,7 @@ class ClassifierTestCollection:
 
     @pytest.fixture(scope="class")
     def filename(self, classifier_class):
-        return "component_0_" + classifier_class.name
+        return f"component_0_{classifier_class.name}"
 
     @pytest.fixture(scope="module")
     def trained_classifier(
@@ -51,7 +51,7 @@ class ClassifierTestCollection:
         for p in classifier_params:
             arg = kwargs.pop(p, None)
             if arg is not None:
-                train_params.update(arg)
+                train_params |= arg
         classifier = self._create_classifier(
             classifier_class, component_config, **kwargs
         )
@@ -64,8 +64,7 @@ class ClassifierTestCollection:
 
     @staticmethod
     def _create_classifier(classifier_class, component_config, **kwargs):
-        classifier = classifier_class(component_config, **kwargs)
-        return classifier
+        return classifier_class(component_config, **kwargs)
 
     def test_persist_and_load(
         self, training_data, trained_classifier, filename, tmpdir

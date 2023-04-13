@@ -60,7 +60,7 @@ def validate_arguments(
     arguments are present to train the pipeline."""
 
     # Ensure the pipeline is not empty
-    if not allow_empty_pipeline and len(pipeline) == 0:
+    if not allow_empty_pipeline and not pipeline:
         raise ValueError(
             "Can not train an empty pipeline. "
             "Make sure to specify a proper pipeline in "
@@ -75,12 +75,11 @@ def validate_arguments(
         for r in component.requires:
             if isinstance(r, Tuple):
                 validate_requires_any_of(r, provided_properties, str(component.name))
-            else:
-                if r not in provided_properties:
-                    raise Exception(
-                        f"Failed to validate component {component.name}. "
-                        f"Missing property: '{r}'"
-                    )
+            elif r not in provided_properties:
+                raise Exception(
+                    f"Failed to validate component {component.name}. "
+                    f"Missing property: '{r}'"
+                )
 
         provided_properties.update(component.provides)
 
@@ -102,7 +101,7 @@ def validate_requires_any_of(
     the provided properties."""
 
     property_present = any(
-        [property in provided_properties for property in required_properties]
+        property in provided_properties for property in required_properties
     )
 
     if not property_present:
@@ -117,12 +116,9 @@ def validate_required_components_from_data(
     pipeline: List["Component"], data: TrainingData
 ):
 
-    response_selector_exists = False
-    for component in pipeline:
-        # check if a response selector is part of NLU pipeline
-        if RESPONSE_ATTRIBUTE in component.provides:
-            response_selector_exists = True
-
+    response_selector_exists = any(
+        RESPONSE_ATTRIBUTE in component.provides for component in pipeline
+    )
     if len(data.response_examples) and not response_selector_exists:
         warnings.warn(
             "Training data consists examples for training a response selector but "
@@ -278,10 +274,7 @@ class Component(metaclass=ComponentMetaclass):
         created by :meth:`components.Component.create`
         calls to components previous
         to this one."""
-        if cached_component:
-            return cached_component
-        else:
-            return cls(meta)
+        return cached_component or cls(meta)
 
     @classmethod
     def create(

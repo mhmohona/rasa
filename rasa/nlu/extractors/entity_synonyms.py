@@ -23,7 +23,7 @@ class EntitySynonymMapper(EntityExtractor):
 
         super().__init__(component_config)
 
-        self.synonyms = synonyms if synonyms else {}
+        self.synonyms = synonyms or {}
 
     def train(
         self, training_data: TrainingData, config: RasaNLUModelConfig, **kwargs: Any
@@ -46,7 +46,7 @@ class EntitySynonymMapper(EntityExtractor):
     def persist(self, file_name: Text, model_dir: Text) -> Optional[Dict[Text, Any]]:
 
         if self.synonyms:
-            file_name = file_name + ".json"
+            file_name = f"{file_name}.json"
             entity_synonyms_file = os.path.join(model_dir, file_name)
             write_json_to_file(
                 entity_synonyms_file, self.synonyms, separators=(",", ": ")

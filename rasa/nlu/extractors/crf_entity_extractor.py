@@ -175,12 +175,7 @@ class CRFEntityExtractor(EntityExtractor):
     def _check_spacy_doc(self, message) -> None:
         if self.pos_features and message.get(SPACY_DOCS[TEXT_ATTRIBUTE]) is None:
             raise InvalidConfigError(
-                "Could not find `spacy_doc` attribute for "
-                "message {}\n"
-                "POS features require a pipeline component "
-                "that provides `spacy_doc` attributes, i.e. `SpacyNLP`. "
-                "See {}/nlu/choosing-a-pipeline/#pretrained-embeddings-spacy "
-                "for details".format(message.text, DOCS_BASE_URL)
+                f"Could not find `spacy_doc` attribute for message {message.text}\nPOS features require a pipeline component that provides `spacy_doc` attributes, i.e. `SpacyNLP`. See {DOCS_BASE_URL}/nlu/choosing-a-pipeline/#pretrained-embeddings-spacy for details"
             )
 
     def process(self, message: Message, **kwargs: Any) -> None:
@@ -213,25 +208,15 @@ class CRFEntityExtractor(EntityExtractor):
             return []
 
     def most_likely_entity(self, idx, entities) -> Tuple[Text, Any]:
-        if len(entities) > idx:
-            entity_probs = entities[idx]
-        else:
-            entity_probs = None
-        if entity_probs:
-            label = max(entity_probs, key=lambda key: entity_probs[key])
-            if self.component_config["BILOU_flag"]:
-                # if we are using bilou flags, we will combine the prob
-                # of the B, I, L and U tags for an entity (so if we have a
-                # score of 60% for `B-address` and 40% and 30%
-                # for `I-address`, we will return 70%)
-                return (
-                    label,
-                    sum([v for k, v in entity_probs.items() if k[2:] == label[2:]]),
-                )
-            else:
-                return label, entity_probs[label]
-        else:
+        entity_probs = entities[idx] if len(entities) > idx else None
+        if not entity_probs:
             return "", 0.0
+        label = max(entity_probs, key=lambda key: entity_probs[key])
+        return (
+            (label, sum(v for k, v in entity_probs.items() if k[2:] == label[2:]))
+            if self.component_config["BILOU_flag"]
+            else (label, entity_probs[label])
+        )
 
     def _create_entity_dict(
         self,
@@ -271,9 +256,7 @@ class CRFEntityExtractor(EntityExtractor):
 
     @staticmethod
     def _bilou_from_label(label) -> Optional[Text]:
-        if len(label) >= 2 and label[1] == "-":
-            return label[0].upper()
-        return None
+        return label[0].upper() if len(label) >= 2 and label[1] == "-" else None
 
     def _find_bilou_end(self, word_idx, entities) -> Any:
         ent_word_idx = word_idx + 1
@@ -425,7 +408,7 @@ class CRFEntityExtractor(EntityExtractor):
 
         from sklearn.externals import joblib
 
-        file_name = file_name + ".pkl"
+        file_name = f"{file_name}.pkl"
         if self.ent_tagger:
             model_file_name = os.path.join(model_dir, file_name)
             joblib.dump(self.ent_tagger, model_file_name)
@@ -464,13 +447,13 @@ class CRFEntityExtractor(EntityExtractor):
                             regex_patterns = self.function_dict[feature](word)
                             # pytype: disable=attribute-error
                             for p_name, matched in regex_patterns.items():
-                                feature_name = prefix + ":" + feature + ":" + p_name
+                                feature_name = f"{prefix}:{feature}:{p_name}"
                                 word_features[feature_name] = matched
-                            # pytype: enable=attribute-error
+                                                # pytype: enable=attribute-error
                         else:
                             # append each feature to a feature vector
                             value = self.function_dict[feature](word)
-                            word_features[prefix + ":" + feature] = value
+                            word_features[f"{prefix}:{feature}"] = value
             sentence_features.append(word_features)
         return sentence_features
 
@@ -543,12 +526,12 @@ class CRFEntityExtractor(EntityExtractor):
             # Only interested if the tokenization is correct
             if start_token is not None and end_token is not None:
                 if start_token == end_token:
-                    bilou[start_token] = "U-%s" % label
+                    bilou[start_token] = f"U-{label}"
                 else:
-                    bilou[start_token] = "B-%s" % label
+                    bilou[start_token] = f"B-{label}"
                     for i in range(start_token + 1, end_token):
-                        bilou[i] = "I-%s" % label
-                    bilou[end_token] = "L-%s" % label
+                        bilou[i] = f"I-{label}"
+                    bilou[end_token] = f"L-{label}"
         # Now distinguish the O cases from ones where we miss the tokenization
         entity_chars = set()
         for start_char, end_char, label in entities:

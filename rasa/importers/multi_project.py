@@ -27,10 +27,7 @@ class MultiProjectImporter(TrainingDataImporter):
         project_directory: Optional[Text] = None,
     ):
         self.config = io_utils.read_config_file(config_file)
-        if domain_path:
-            self._domain_paths = [domain_path]
-        else:
-            self._domain_paths = []
+        self._domain_paths = [domain_path] if domain_path else []
         self._story_paths = []
         self._nlu_paths = []
         self._imports = []
@@ -144,12 +141,11 @@ class MultiProjectImporter(TrainingDataImporter):
         )
 
     def _is_in_project_directory(self, path: Text) -> bool:
-        if os.path.isfile(path):
-            parent_directory = os.path.abspath(os.path.dirname(path))
-
-            return parent_directory == self._project_directory
-        else:
+        if not os.path.isfile(path):
             return path == self._project_directory
+        parent_directory = os.path.abspath(os.path.dirname(path))
+
+        return parent_directory == self._project_directory
 
     def _is_in_additional_paths(self, path: Text) -> bool:
         included = path in self._additional_paths
@@ -161,7 +157,7 @@ class MultiProjectImporter(TrainingDataImporter):
         return included
 
     def _is_in_imported_paths(self, path) -> bool:
-        return any([io_utils.is_subdirectory(path, i) for i in self._imports])
+        return any(io_utils.is_subdirectory(path, i) for i in self._imports)
 
     def add_import(self, path: Text) -> None:
         self._imports.append(path)

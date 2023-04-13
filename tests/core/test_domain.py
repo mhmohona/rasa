@@ -29,10 +29,7 @@ async def test_create_train_data_no_history(default_domain):
         training_trackers, default_domain
     )
 
-    # decoded needs to be sorted
-    hashed = []
-    for states in decoded:
-        hashed.append(json.dumps(states, sort_keys=True))
+    hashed = [json.dumps(states, sort_keys=True) for states in decoded]
     hashed = sorted(hashed, reverse=True)
 
     assert hashed == [
@@ -62,10 +59,7 @@ async def test_create_train_data_with_history(default_domain):
         training_trackers, default_domain
     )
 
-    # decoded needs to be sorted
-    hashed = []
-    for states in decoded:
-        hashed.append(json.dumps(states, sort_keys=True))
+    hashed = [json.dumps(states, sort_keys=True) for states in decoded]
     hashed = sorted(hashed)
 
     assert hashed == [
@@ -126,10 +120,7 @@ async def test_create_train_data_unfeaturized_entities():
     assert len(training_trackers) == 2
     (decoded, _) = featurizer.training_states_and_actions(training_trackers, domain)
 
-    # decoded needs to be sorted
-    hashed = []
-    for states in decoded:
-        hashed.append(json.dumps(states, sort_keys=True))
+    hashed = [json.dumps(states, sort_keys=True) for states in decoded]
     hashed = sorted(hashed, reverse=True)
 
     assert hashed == [
@@ -459,7 +450,7 @@ def test_domain_warnings():
     )
 
     for diff_dict in domain_warnings.values():
-        assert all(not diff_set for diff_set in diff_dict.values())
+        assert not any(diff_dict.values())
 
 
 def test_unfeaturized_slot_in_domain_warnings():

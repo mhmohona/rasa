@@ -307,8 +307,7 @@ class PikaEventBroker(EventBroker):
                 return
             except Exception as e:
                 logger.error(
-                    "Could not open Pika channel at host '{}'. Failed with error: "
-                    "{}".format(self.host, e)
+                    f"Could not open Pika channel at host '{self.host}'. Failed with error: {e}"
                 )
                 self.channel = None
 
@@ -316,8 +315,7 @@ class PikaEventBroker(EventBroker):
             time.sleep(retry_delay_in_seconds)
 
         logger.error(
-            "Failed to publish Pika event to queue '{}' on host "
-            "'{}':\n{}".format(self.queue, self.host, body)
+            f"Failed to publish Pika event to queue '{self.queue}' on host '{self.host}':\n{body}"
         )
 
     @property

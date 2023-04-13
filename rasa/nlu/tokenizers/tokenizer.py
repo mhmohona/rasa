@@ -19,7 +19,7 @@ class Token(object):
         self.offset = offset
         self.text = text
         self.end = offset + len(text)
-        self.data = data if data else {}
+        self.data = data or {}
         self.lemma = lemma or text
 
     def set(self, prop: Text, info: Any) -> None:
@@ -29,23 +29,29 @@ class Token(object):
         return self.data.get(prop, default)
 
     def __eq__(self, other):
-        if not isinstance(other, Token):
-            return NotImplemented
-        return (self.offset, self.end, self.text, self.lemma) == (
-            other.offset,
-            other.end,
-            other.text,
-            other.lemma,
+        return (
+            (self.offset, self.end, self.text, self.lemma)
+            == (
+                other.offset,
+                other.end,
+                other.text,
+                other.lemma,
+            )
+            if isinstance(other, Token)
+            else NotImplemented
         )
 
     def __lt__(self, other):
-        if not isinstance(other, Token):
-            return NotImplemented
-        return (self.offset, self.end, self.text, self.lemma) < (
-            other.offset,
-            other.end,
-            other.text,
-            other.lemma,
+        return (
+            (self.offset, self.end, self.text, self.lemma)
+            < (
+                other.offset,
+                other.end,
+                other.text,
+                other.lemma,
+            )
+            if isinstance(other, Token)
+            else NotImplemented
         )
 
 

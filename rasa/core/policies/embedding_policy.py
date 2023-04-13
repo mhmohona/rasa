@@ -429,10 +429,7 @@ class EmbeddingPolicy(Policy):
 
         # check if number of negatives is less than number of label_ids
         logger.debug(
-            "Check if num_neg {} is smaller "
-            "than number of label_ids {}, "
-            "else set num_neg to the number of label_ids - 1"
-            "".format(self.num_neg, domain.num_actions)
+            f"Check if num_neg {self.num_neg} is smaller than number of label_ids {domain.num_actions}, else set num_neg to the number of label_ids - 1"
         )
         # noinspection PyAttributeOutsideInit
         self.num_neg = min(self.num_neg, domain.num_actions - 1)
@@ -613,7 +610,7 @@ class EmbeddingPolicy(Policy):
             saver = tf.train.Saver()
             saver.save(self.session, checkpoint)
 
-        with open(os.path.join(path, file_name + ".tf_config.pkl"), "wb") as f:
+        with open(os.path.join(path, f"{file_name}.tf_config.pkl"), "wb") as f:
             pickle.dump(self._tf_config, f)
 
     @classmethod
@@ -625,8 +622,7 @@ class EmbeddingPolicy(Policy):
 
         if not os.path.exists(path):
             raise Exception(
-                "Failed to load dialogue model. Path '{}' "
-                "doesn't exist".format(os.path.abspath(path))
+                f"Failed to load dialogue model. Path '{os.path.abspath(path)}' doesn't exist"
             )
 
         featurizer = TrackerFeaturizer.load(path)
@@ -634,19 +630,19 @@ class EmbeddingPolicy(Policy):
         file_name = "tensorflow_embedding.ckpt"
         checkpoint = os.path.join(path, file_name)
 
-        if not os.path.exists(checkpoint + ".meta"):
+        if not os.path.exists(f"{checkpoint}.meta"):
             return cls(featurizer=featurizer)
 
         meta_file = os.path.join(path, "embedding_policy.json")
         meta = json.loads(rasa.utils.io.read_file(meta_file))
 
-        with open(os.path.join(path, file_name + ".tf_config.pkl"), "rb") as f:
+        with open(os.path.join(path, f"{file_name}.tf_config.pkl"), "rb") as f:
             _tf_config = pickle.load(f)
 
         graph = tf.Graph()
         with graph.as_default():
             session = tf.Session(config=_tf_config)
-            saver = tf.train.import_meta_graph(checkpoint + ".meta")
+            saver = tf.train.import_meta_graph(f"{checkpoint}.meta")
 
             saver.restore(session, checkpoint)
 

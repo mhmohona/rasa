@@ -49,11 +49,7 @@ def _load_from_dict(config: Dict, **kwargs: Any) -> "RasaNLUModelConfig":
 def override_defaults(
     defaults: Optional[Dict[Text, Any]], custom: Optional[Dict[Text, Any]]
 ) -> Dict[Text, Any]:
-    if defaults:
-        cfg = copy.deepcopy(defaults)
-    else:
-        cfg = {}
-
+    cfg = copy.deepcopy(defaults) if defaults else {}
     if custom:
         cfg.update(custom)
     return cfg
@@ -113,9 +109,7 @@ class RasaNLUModelConfig:
                 )
                 template_name = new_names[template_name]
 
-            pipeline = registry.pipeline_template(template_name)
-
-            if pipeline:
+            if pipeline := registry.pipeline_template(template_name):
                 # replaces the template with the actual components
                 self.__dict__["pipeline"] = pipeline
             else:
@@ -170,10 +164,7 @@ class RasaNLUModelConfig:
 
     @property
     def component_names(self) -> List[Text]:
-        if self.pipeline:
-            return [c.get("name") for c in self.pipeline]
-        else:
-            return []
+        return [c.get("name") for c in self.pipeline] if self.pipeline else []
 
     def set_component_attr(self, index, **kwargs) -> None:
         try:

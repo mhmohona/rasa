@@ -162,7 +162,7 @@ class MitieEntityExtractor(EntityExtractor):
     def persist(self, file_name: Text, model_dir: Text) -> Optional[Dict[Text, Any]]:
 
         if self.ner:
-            file_name = file_name + ".dat"
+            file_name = f"{file_name}.dat"
             entity_extractor_file = os.path.join(model_dir, file_name)
             self.ner.save_to_disk(entity_extractor_file, pure_model=True)
             return {"file": file_name}

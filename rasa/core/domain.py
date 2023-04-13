@@ -101,8 +101,7 @@ class Domain:
             domain = cls.from_directory(path)
         else:
             raise InvalidDomain(
-                "Failed to load domain specification from '{}'. "
-                "File not found!".format(os.path.abspath(path))
+                f"Failed to load domain specification from '{os.path.abspath(path)}'. File not found!"
             )
 
         return domain
@@ -264,13 +263,12 @@ class Domain:
                 name = intent
                 intent = {intent: {"use_entities": True, "ignore_entities": []}}
 
-            if name in intent_properties.keys():
+            if name in intent_properties:
                 raise InvalidDomain(
-                    "Intents are not unique! Found two intents with name '{}'. "
-                    "Either rename or remove one of them.".format(name)
+                    f"Intents are not unique! Found two intents with name '{name}'. Either rename or remove one of them."
                 )
 
-            intent_properties.update(intent)
+            intent_properties |= intent
         return intent_properties
 
     @staticmethod
@@ -284,9 +282,7 @@ class Domain:
             validated_variations = []
             if template_variations is None:
                 raise InvalidDomain(
-                    "Utterance '{}' does not have any defined templates.".format(
-                        template_key
-                    )
+                    f"Utterance '{template_key}' does not have any defined templates."
                 )
 
             for t in template_variations:
@@ -392,9 +388,7 @@ class Domain:
         """
         if DEFAULT_KNOWLEDGE_BASE_ACTION in self.action_names:
             logger.warning(
-                "You are using an experiential feature: Action '{}'!".format(
-                    DEFAULT_KNOWLEDGE_BASE_ACTION
-                )
+                f"You are using an experiential feature: Action '{DEFAULT_KNOWLEDGE_BASE_ACTION}'!"
             )
             slot_names = [s.name for s in self.slots]
             knowledge_base_slots = [
@@ -427,9 +421,7 @@ class Domain:
 
         if self.num_actions <= index or index < 0:
             raise IndexError(
-                "Cannot access action at index {}. "
-                "Domain has {} actions."
-                "".format(index, self.num_actions)
+                f"Cannot access action at index {index}. Domain has {self.num_actions} actions."
             )
 
         return self.action_for_name(self.action_names[index], action_endpoint)
@@ -472,7 +464,7 @@ class Domain:
         return [
             f"slot_{s.name}_{i}"
             for s in self.slots
-            for i in range(0, s.feature_dimensionality())
+            for i in range(s.feature_dimensionality())
         ]
 
     # noinspection PyTypeChecker
@@ -551,11 +543,11 @@ class Domain:
         if "intent_ranking" in latest_message.parse_data:
             for intent in latest_message.parse_data["intent_ranking"]:
                 if intent.get("name"):
-                    intent_id = "intent_{}".format(intent["name"])
+                    intent_id = f'intent_{intent["name"]}'
                     state_dict[intent_id] = intent["confidence"]
 
         elif intent_name:
-            intent_id = "intent_{}".format(latest_message.intent["name"])
+            intent_id = f'intent_{latest_message.intent["name"]}'
             state_dict[intent_id] = latest_message.intent.get("confidence", 1.0)
 
         return state_dict
@@ -594,31 +586,25 @@ class Domain:
     ) -> Dict[Text, float]:
         """Turns the previous taken action into a state name."""
 
-        latest_action = tracker.latest_action_name
-        if latest_action:
-            prev_action_name = PREV_PREFIX + latest_action
-            if prev_action_name in self.input_state_map:
-                return {prev_action_name: 1.0}
-            else:
-                warnings.warn(
-                    f"Failed to use action '{latest_action}' in history. "
-                    f"Please make sure all actions are listed in the "
-                    f"domains action list. If you recently removed an "
-                    f"action, don't worry about this warning. It "
-                    f"should stop appearing after a while."
-                )
-                return {}
-        else:
+        if not (latest_action := tracker.latest_action_name):
             return {}
+        prev_action_name = PREV_PREFIX + latest_action
+        if prev_action_name in self.input_state_map:
+            return {prev_action_name: 1.0}
+        warnings.warn(
+            f"Failed to use action '{latest_action}' in history. "
+            f"Please make sure all actions are listed in the "
+            f"domains action list. If you recently removed an "
+            f"action, don't worry about this warning. It "
+            f"should stop appearing after a while."
+        )
+        return {}
 
     @staticmethod
     def get_active_form(tracker: "DialogueStateTracker") -> Dict[Text, float]:
         """Turns tracker's active form into a state name."""
         form = tracker.active_form.get("name")
-        if form is not None:
-            return {ACTIVE_FORM_PREFIX + form: 1.0}
-        else:
-            return {}
+        return {ACTIVE_FORM_PREFIX + form: 1.0} if form is not None else {}
 
     def get_active_states(self, tracker: "DialogueStateTracker") -> Dict[Text, float]:
         """Return a bag of active states from the tracker state"""
@@ -636,21 +622,19 @@ class Domain:
         ]
 
     def slots_for_entities(self, entities: List[Dict[Text, Any]]) -> List[SlotSet]:
-        if self.store_entities_as_slots:
-            slot_events = []
-            for s in self.slots:
-                if s.auto_fill:
-                    matching_entities = [
-                        e["value"] for e in entities if e["entity"] == s.name
-                    ]
-                    if matching_entities:
-                        if s.type_name == "list":
-                            slot_events.append(SlotSet(s.name, matching_entities))
-                        else:
-                            slot_events.append(SlotSet(s.name, matching_entities[-1]))
-            return slot_events
-        else:
+        if not self.store_entities_as_slots:
             return []
+        slot_events = []
+        for s in self.slots:
+            if s.auto_fill:
+                if matching_entities := [
+                    e["value"] for e in entities if e["entity"] == s.name
+                ]:
+                    if s.type_name == "list":
+                        slot_events.append(SlotSet(s.name, matching_entities))
+                    else:
+                        slot_events.append(SlotSet(s.name, matching_entities[-1]))
+        return slot_events
 
     def persist_specification(self, model_path: Text) -> None:
         """Persists the domain specification to storage."""
@@ -666,8 +650,7 @@ class Domain:
         """Load a domains specification from a dumped model directory."""
 
         metadata_path = os.path.join(path, "domain.json")
-        specification = json.loads(rasa.utils.io.read_file(metadata_path))
-        return specification
+        return json.loads(rasa.utils.io.read_file(metadata_path))
 
     def compare_with_specification(self, path: Text) -> bool:
         """Compares the domain spec of the current and the loaded domain.
@@ -755,11 +738,7 @@ class Domain:
         utils.dump_obj_as_yaml_to_file(filename, cleaned_domain_data)
 
     def as_yaml(self, clean_before_dump: bool = False) -> Text:
-        if clean_before_dump:
-            domain_data = self.cleaned_domain()
-        else:
-            domain_data = self.as_dict()
-
+        domain_data = self.cleaned_domain() if clean_before_dump else self.as_dict()
         return utils.dump_obj_as_yaml_to_string(domain_data)
 
     def intent_config(self, intent_name: Text) -> Dict[Text, Any]:
@@ -863,11 +842,11 @@ class Domain:
             ]
 
         def check_mappings(
-            intent_properties: Dict[Text, Dict[Text, Union[bool, List]]]
-        ) -> List[Tuple[Text, Text]]:
+                intent_properties: Dict[Text, Dict[Text, Union[bool, List]]]
+            ) -> List[Tuple[Text, Text]]:
             """Check whether intent-action mappings use proper action names."""
 
-            incorrect = list()
+            incorrect = []
             for intent, properties in intent_properties.items():
                 if "triggers" in properties:
                     triggered_action = properties.get("triggers")
@@ -951,9 +930,9 @@ class Domain:
             if a.startswith(rasa.core.constants.UTTER_PREFIX)
         ]
 
-        missing_templates = [t for t in utterances if t not in self.templates.keys()]
-
-        if missing_templates:
+        if missing_templates := [
+            t for t in utterances if t not in self.templates.keys()
+        ]:
             for template in missing_templates:
                 warnings.warn(
                     f"Utterance '{template}' is listed as an "

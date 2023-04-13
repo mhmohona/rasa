@@ -37,7 +37,7 @@ class TwilioOutput(Client, OutputChannel):
                 message = self.messages.create(**message_data)
                 self.send_retry += 1
         except TwilioRestException as e:
-            logger.error("Something went wrong " + repr(e.msg))
+            logger.error(f"Something went wrong {repr(e.msg)}")
         finally:
             self.send_retry = 0
 
@@ -53,7 +53,7 @@ class TwilioOutput(Client, OutputChannel):
 
         message_data = {"to": recipient_id, "from_": self.twilio_number}
         for message_part in text.split("\n\n"):
-            message_data.update({"body": message_part})
+            message_data["body"] = message_part
             await self._send_message(message_data)
 
     async def send_custom_json(
@@ -137,7 +137,6 @@ class TwilioInput(InputChannel):
                     logger.debug(e, exc_info=True)
                     if self.debug_mode:
                         raise
-                    pass
             else:
                 logger.debug("Invalid message")
 

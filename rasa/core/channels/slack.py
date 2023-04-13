@@ -174,10 +174,8 @@ class SlackInput(InputChannel):
     def _is_user_message(slack_event: Dict) -> bool:
         return (
             slack_event.get("event")
-            and (
-                slack_event.get("event", {}).get("type") == "message"
-                or slack_event.get("event", {}).get("type") == "app_mention"
-            )
+            and slack_event.get("event", {}).get("type")
+            in ["message", "app_mention"]
             and slack_event.get("event", {}).get("text")
             and not slack_event.get("event", {}).get("bot_id")
         )
@@ -214,10 +212,8 @@ class SlackInput(InputChannel):
         """
 
         pattern = r"\<(mailto:|(http|https):\/\/).*\|.*\>"
-        match = re.search(pattern, text)
-
-        if match:
-            regex = match.group(0)
+        if match := re.search(pattern, text):
+            regex = match[0]
             replacement = regex.split("|")[1]
             replacement = replacement.replace(">", "")
             text = text.replace(regex, replacement)
@@ -227,19 +223,19 @@ class SlackInput(InputChannel):
     def _is_interactive_message(payload: Dict) -> bool:
         """Check wheter the input is a supported interactive input type."""
 
-        supported = [
-            "button",
-            "select",
-            "static_select",
-            "external_select",
-            "conversations_select",
-            "users_select",
-            "channels_select",
-            "overflow",
-            "datepicker",
-        ]
         if payload.get("actions"):
             action_type = payload["actions"][0].get("type")
+            supported = [
+                "button",
+                "select",
+                "static_select",
+                "external_select",
+                "conversations_select",
+                "users_select",
+                "channels_select",
+                "overflow",
+                "datepicker",
+            ]
             if action_type in supported:
                 return True
             elif action_type:

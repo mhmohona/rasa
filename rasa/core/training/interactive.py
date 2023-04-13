@@ -203,7 +203,6 @@ async def send_action(
                     f"when you exit and save this session. "
                     f"You do not need to do anything further."
                 )
-                await _ask_questions(warning_questions, sender_id, endpoint)
             else:
                 warning_questions = questionary.confirm(
                     f"WARNING: You have created a new action: '{action_name}', "
@@ -214,8 +213,7 @@ async def send_action(
                     f"you are recommended to implement this action "
                     f"in your action server and try again."
                 )
-                await _ask_questions(warning_questions, sender_id, endpoint)
-
+            await _ask_questions(warning_questions, sender_id, endpoint)
             payload = ActionExecuted(action_name).as_dict()
             return await send_event(endpoint, sender_id, payload)
         else:
@@ -277,10 +275,14 @@ def format_bot_output(message: BotUttered) -> Text:
 def latest_user_message(events: List[Dict[Text, Any]]) -> Optional[Dict[Text, Any]]:
     """Return most recent user message."""
 
-    for i, e in enumerate(reversed(events)):
-        if e.get("event") == UserUttered.type_name:
-            return e
-    return None
+    return next(
+        (
+            e
+            for e in reversed(events)
+            if e.get("event") == UserUttered.type_name
+        ),
+        None,
+    )
 
 
 def all_events_before_latest_user_msg(
@@ -288,10 +290,14 @@ def all_events_before_latest_user_msg(
 ) -> List[Dict[Text, Any]]:
     """Return all events that happened before the most recent user message."""
 
-    for i, e in enumerate(reversed(events)):
-        if e.get("event") == UserUttered.type_name:
-            return events[: -(i + 1)]
-    return events
+    return next(
+        (
+            events[: -(i + 1)]
+            for i, e in enumerate(reversed(events))
+            if e.get("event") == UserUttered.type_name
+        ),
+        events,
+    )
 
 
 async def _ask_questions(
@@ -385,19 +391,16 @@ async def _request_fork_from_user(
 
     tracker = await retrieve_tracker(endpoint, sender_id, EventVerbosity.AFTER_RESTART)
 
-    choices = []
-    for i, e in enumerate(tracker.get("events", [])):
-        if e.get("event") == UserUttered.type_name:
-            choices.append({"name": e.get("text"), "value": i})
-
+    choices = [
+        {"name": e.get("text"), "value": i}
+        for i, e in enumerate(tracker.get("events", []))
+        if e.get("event") == UserUttered.type_name
+    ]
     fork_idx = await _request_fork_point_from_list(
         list(reversed(choices)), sender_id, endpoint
     )
 
-    if fork_idx is not None:
-        return tracker.get("events", [])[: int(fork_idx)]
-    else:
-        return None
+    return None if fork_idx is None else tracker.get("events", [])[: int(fork_idx)]
 
 
 async def _request_intent_from_user(
@@ -422,16 +425,15 @@ async def _request_intent_from_user(
 
     intent_name = await _request_selection_from_intents(choices, sender_id, endpoint)
 
-    if intent_name == OTHER_INTENT:
-        intent_name = await _request_free_text_intent(sender_id, endpoint)
-        selected_intent = {"name": intent_name, "confidence": 1.0}
-    else:
+    if intent_name != OTHER_INTENT:
         # returns the selected intent with the original probability value
-        selected_intent = next(
-            (x for x in predictions if x["name"] == intent_name), {"name": None}
+        return next(
+            (x for x in predictions if x["name"] == intent_name),
+            {"name": None},
         )
 
-    return selected_intent
+    intent_name = await _request_free_text_intent(sender_id, endpoint)
+    return {"name": intent_name, "confidence": 1.0}
 
 
 async def _print_history(sender_id: Text, endpoint: EndpointConfig) -> None:
@@ -694,11 +696,10 @@ def _request_export_info() -> Tuple[Text, Text, Text]:
         ),
     )
 
-    answers = questions.ask()
-    if not answers:
+    if answers := questions.ask():
+        return answers["export_stories"], answers["export_nlu"], answers["export_domain"]
+    else:
         raise Abort()
-
-    return answers["export_stories"], answers["export_nlu"], answers["export_domain"]
 
 
 def _split_conversation_at_restarts(
@@ -777,11 +778,7 @@ async def _write_stories_to_file(
 
     io_utils.create_path(export_story_path)
 
-    if os.path.exists(export_story_path):
-        append_write = "a"  # append if already exists
-    else:
-        append_write = "w"  # make a new file if not
-
+    append_write = "a" if os.path.exists(export_story_path) else "w"
     with open(export_story_path, append_write, encoding=io_utils.DEFAULT_ENCODING) as f:
         i = 1
         for conversation in sub_conversations:
@@ -800,11 +797,7 @@ async def _write_stories_to_file(
 def _filter_messages(msgs: List[Message]) -> List[Message]:
     """Filter messages removing those that start with INTENT_MESSAGE_PREFIX"""
 
-    filtered_messages = []
-    for msg in msgs:
-        if not msg.text.startswith(INTENT_MESSAGE_PREFIX):
-            filtered_messages.append(msg)
-    return filtered_messages
+    return [msg for msg in msgs if not msg.text.startswith(INTENT_MESSAGE_PREFIX)]
 
 
 async def _write_nlu_to_file(
@@ -843,11 +836,7 @@ def _get_nlu_target_format(export_path: Text) -> Text:
     guessed_format = loading.guess_format(export_path)
 
     if guessed_format not in {MARKDOWN, RASA}:
-        if export_path.endswith(".json"):
-            guessed_format = RASA
-        else:
-            guessed_format = MARKDOWN
-
+        guessed_format = RASA if export_path.endswith(".json") else MARKDOWN
     return guessed_format
 
 
@@ -859,10 +848,7 @@ def _entities_from_messages(messages: List[Message]) -> List[Text]:
 def _intents_from_messages(messages: List[Message]) -> Set[Text]:
     """Return all intents that occur in at least one of the messages."""
 
-    # set of distinct intents
-    distinct_intents = {m.data["intent"] for m in messages if "intent" in m.data}
-
-    return distinct_intents
+    return {m.data["intent"] for m in messages if "intent" in m.data}
 
 
 async def _write_domain_to_file(
@@ -948,8 +934,7 @@ def _get_button_choice(last_event: Dict[Text, Any]) -> Text:
         data, allow_free_text_input=True
     )
     question = questionary.select(message, choices)
-    response = cli_utils.payload_from_button_question(question)
-    return response
+    return cli_utils.payload_from_button_question(question)
 
 
 async def _correct_wrong_nlu(
@@ -1116,10 +1101,7 @@ def _validate_user_regex(latest_message: Dict[Text, Any], intents: List[Text]) -
     parse_data = latest_message.get("parse_data", {})
     intent = parse_data.get("intent", {}).get("name")
 
-    if intent in intents:
-        return True
-    else:
-        return False
+    return intent in intents
 
 
 async def _validate_user_text(
@@ -1132,8 +1114,7 @@ async def _validate_user_text(
     parse_data = latest_message.get("parse_data", {})
     text = _as_md_message(parse_data)
     intent = parse_data.get("intent", {}).get("name")
-    entities = parse_data.get("entities", [])
-    if entities:
+    if entities := parse_data.get("entities", []):
         message = (
             f"Is the intent '{intent}' correct for '{text}' and are "
             f"all entities labeled correctly?"
@@ -1209,11 +1190,9 @@ async def _correct_entities(
     # noinspection PyProtectedMember
     parse_annotated = MarkdownReader().parse_training_example(annotation)
 
-    corrected_entities = _merge_annotated_and_original_entities(
+    return _merge_annotated_and_original_entities(
         parse_annotated, parse_original
     )
-
-    return corrected_entities
 
 
 def _merge_annotated_and_original_entities(
@@ -1253,7 +1232,7 @@ async def is_listening_for_message(sender_id: Text, endpoint: EndpointConfig) ->
 
     tracker = await retrieve_tracker(endpoint, sender_id, EventVerbosity.APPLIED)
 
-    for i, e in enumerate(reversed(tracker.get("events", []))):
+    for e in reversed(tracker.get("events", [])):
         if e.get("event") == UserUttered.type_name:
             return False
         elif e.get("event") == ActionExecuted.type_name:
@@ -1268,7 +1247,7 @@ async def _undo_latest(sender_id: Text, endpoint: EndpointConfig) -> None:
 
     # Get latest `UserUtterance` or `ActionExecuted` event.
     last_event_type = None
-    for i, e in enumerate(reversed(tracker.get("events", []))):
+    for e in reversed(tracker.get("events", [])):
         last_event_type = e.get("event")
         if last_event_type in {ActionExecuted.type_name, UserUttered.type_name}:
             break
@@ -1458,9 +1437,7 @@ async def _get_tracker_events_to_plot(
         training_trackers = []
 
     training_data_events = [t.events for t in training_trackers]
-    events_including_current_user_id = training_data_events + [sender_id]
-
-    return events_including_current_user_id
+    return training_data_events + [sender_id]
 
 
 async def _get_training_trackers(
@@ -1566,15 +1543,14 @@ async def wait_til_server_is_running(
         try:
             r = await retrieve_status(endpoint)
             logger.info(f"Reached core: {r}")
-            if not r.get("is_ready"):
-                # server did not finish loading the agent yet
-                # in this case, we need to wait till the model trained
-                # so we might be sleeping for a while...
-                await asyncio.sleep(sleep_between_retries)
-                continue
-            else:
+            if r.get("is_ready"):
                 # server is ready to go
                 return True
+            # server did not finish loading the agent yet
+            # in this case, we need to wait till the model trained
+            # so we might be sleeping for a while...
+            await asyncio.sleep(sleep_between_retries)
+            continue
         except ClientError:
             max_retries -= 1
             if max_retries:

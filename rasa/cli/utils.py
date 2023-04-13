@@ -83,8 +83,7 @@ def cancel_cause_not_found(
     if default:
         default_clause = f"use the default location ('{default}') or "
     print_error(
-        "The path '{}' does not exist. Please make sure to {}specify it"
-        " with '--{}'.".format(current, default_clause, parameter)
+        f"The path '{current}' does not exist. Please make sure to {default_clause}specify it with '--{parameter}'."
     )
     exit(1)
 
@@ -125,15 +124,13 @@ def create_output_path(
 
     if output_path.endswith("tar.gz"):
         return output_path
+    if fixed_name:
+        name = fixed_name
     else:
-        if fixed_name:
-            name = fixed_name
-        else:
-            time_format = "%Y%m%d-%H%M%S"
-            name = time.strftime(time_format)
-            name = f"{prefix}{name}"
-        file_name = f"{name}.tar.gz"
-        return os.path.join(output_path, file_name)
+        name = time.strftime("%Y%m%d-%H%M%S")
+        name = f"{prefix}{name}"
+    file_name = f"{name}.tar.gz"
+    return os.path.join(output_path, file_name)
 
 
 def button_to_string(button: Dict[Text, Any], idx: int = 0) -> Text:
@@ -141,33 +138,21 @@ def button_to_string(button: Dict[Text, Any], idx: int = 0) -> Text:
 
     title = button.pop("title", "")
 
-    if "payload" in button:
-        payload = " ({})".format(button.pop("payload"))
-    else:
-        payload = ""
-
+    payload = f' ({button.pop("payload")})' if "payload" in button else ""
     # if there are any additional attributes, we append them to the output
-    if button:
-        details = " - {}".format(json.dumps(button, sort_keys=True))
-    else:
-        details = ""
-
-    button_string = "{idx}: {title}{payload}{details}".format(
+    details = " - {}".format(json.dumps(button, sort_keys=True)) if button else ""
+    return "{idx}: {title}{payload}{details}".format(
         idx=idx + 1, title=title, payload=payload, details=details
     )
-
-    return button_string
 
 
 def element_to_string(element: Dict[Text, Any], idx: int = 0) -> Text:
     """Create a string representation of an element."""
     title = element.pop("title", "")
 
-    element_string = "{idx}: {title} - {element}".format(
+    return "{idx}: {title} - {element}".format(
         idx=idx + 1, title=title, element=json.dumps(element, sort_keys=True)
     )
-
-    return element_string
 
 
 def button_choices_from_message_data(

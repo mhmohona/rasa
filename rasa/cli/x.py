@@ -89,10 +89,9 @@ def _rasa_service(
 def _prepare_credentials_for_rasa_x(
     credentials_path: Optional[Text], rasa_x_url: Optional[Text] = None
 ) -> Text:
-    credentials_path = cli_utils.get_validated_path(
+    if credentials_path := cli_utils.get_validated_path(
         credentials_path, "credentials", DEFAULT_CREDENTIALS_PATH, True
-    )
-    if credentials_path:
+    ):
         credentials = io_utils.read_config_file(credentials_path)
     else:
         credentials = {}
@@ -101,9 +100,7 @@ def _prepare_credentials_for_rasa_x(
     if rasa_x_url:
         credentials["rasa"] = {"url": rasa_x_url}
     dumped_credentials = yaml.dump(credentials, default_flow_style=False)
-    tmp_credentials = io_utils.create_temporary_file(dumped_credentials, "yml")
-
-    return tmp_credentials
+    return io_utils.create_temporary_file(dumped_credentials, "yml")
 
 
 def _overwrite_endpoints_for_local_x(
@@ -153,10 +150,7 @@ def _get_event_broker_endpoint(
         return default_event_broker_endpoint
     elif not _is_correct_event_broker(event_broker_endpoint):
         cli_utils.print_error(
-            "Rasa X currently only supports a SQLite event broker with path '{}' "
-            "when running locally. You can deploy Rasa X with Docker "
-            "(https://rasa.com/docs/rasa-x/deploy/) if you want to use "
-            "other event broker configurations.".format(DEFAULT_EVENTS_DB)
+            f"Rasa X currently only supports a SQLite event broker with path '{DEFAULT_EVENTS_DB}' when running locally. You can deploy Rasa X with Docker (https://rasa.com/docs/rasa-x/deploy/) if you want to use other event broker configurations."
         )
         continue_with_default_event_broker = questionary.confirm(
             "Do you want to continue with the default SQLite event broker?"
@@ -248,7 +242,7 @@ def _configure_logging(args: argparse.Namespace):
     logging.getLogger("pika").setLevel(logging.WARNING)
     logging.getLogger("socketio").setLevel(logging.ERROR)
 
-    if not log_level == logging.DEBUG:
+    if log_level != logging.DEBUG:
         logging.getLogger().setLevel(logging.WARNING)
         logging.getLogger("py.warnings").setLevel(logging.ERROR)
 
@@ -257,11 +251,9 @@ def is_rasa_project_setup(args: argparse.Namespace, project_path: Text) -> bool:
     config_path = _get_config_path(args)
     mandatory_files = [config_path, DEFAULT_DOMAIN_PATH]
 
-    for f in mandatory_files:
-        if not os.path.exists(os.path.join(project_path, f)):
-            return False
-
-    return True
+    return all(
+        os.path.exists(os.path.join(project_path, f)) for f in mandatory_files
+    )
 
 
 def _validate_rasa_x_start(args: argparse.Namespace, project_path: Text):
@@ -275,12 +267,7 @@ def _validate_rasa_x_start(args: argparse.Namespace, project_path: Text):
 
     if args.port == args.rasa_x_port:
         cli_utils.print_error_and_exit(
-            "The port for Rasa X '{}' and the port of the Rasa server '{}' are the "
-            "same. We need two different ports, one to run Rasa X (e.g. delivering the "
-            "UI) and another one to run a normal Rasa server.\nPlease specify two "
-            "different ports using the arguments '--port' and '--rasa-x-port'.".format(
-                args.rasa_x_port, args.port
-            )
+            f"The port for Rasa X '{args.rasa_x_port}' and the port of the Rasa server '{args.port}' are the same. We need two different ports, one to run Rasa X (e.g. delivering the UI) and another one to run a normal Rasa server.\nPlease specify two different ports using the arguments '--port' and '--rasa-x-port'."
         )
 
     if not is_rasa_project_setup(args, project_path):
@@ -295,8 +282,7 @@ def _validate_rasa_x_start(args: argparse.Namespace, project_path: Text):
 
     if args.data and not os.path.exists(args.data):
         cli_utils.print_warning(
-            "The provided data path ('{}') does not exists. Rasa X will start "
-            "without any training data.".format(args.data)
+            f"The provided data path ('{args.data}') does not exists. Rasa X will start without any training data."
         )
 
 
@@ -307,7 +293,7 @@ def _validate_domain(domain_path: Text):
         Domain.load(domain_path)
     except InvalidDomain as e:
         cli_utils.print_error_and_exit(
-            "The provided domain file could not be loaded. " "Error: {}".format(e)
+            f"The provided domain file could not be loaded. Error: {e}"
         )
 
 
@@ -348,14 +334,11 @@ async def _pull_runtime_config_from_server(
                             ]
                         except KeyError as e:
                             cli_utils.print_error_and_exit(
-                                "Failed to find key '{}' in runtime config. "
-                                "Exiting.".format(e)
+                                f"Failed to find key '{e}' in runtime config. Exiting."
                             )
                     else:
                         logger.debug(
-                            "Failed to get a proper response from remote "
-                            "server. Status Code: {}. Response: '{}'"
-                            "".format(resp.status, await resp.text())
+                            f"Failed to get a proper response from remote server. Status Code: {resp.status}. Response: '{await resp.text()}'"
                         )
         except aiohttp.ClientError as e:
             logger.debug(f"Failed to connect to server. Retrying. {e}")
@@ -364,8 +347,7 @@ async def _pull_runtime_config_from_server(
         attempts -= 1
 
     cli_utils.print_error_and_exit(
-        "Could not fetch runtime config from server at '{}'. "
-        "Exiting.".format(config_endpoint)
+        f"Could not fetch runtime config from server at '{config_endpoint}'. Exiting."
     )
 
 
@@ -381,18 +363,15 @@ def run_in_production(args: argparse.Namespace):
 
 
 def _get_config_path(args: argparse.Namespace,) -> Optional[Text]:
-    config_path = cli_utils.get_validated_path(
+    return cli_utils.get_validated_path(
         args.config, "config", DEFAULT_CONFIG_PATH
     )
-
-    return config_path
 
 
 def _get_credentials_and_endpoints_paths(
     args: argparse.Namespace,
 ) -> Tuple[Optional[Text], Optional[Text]]:
-    config_endpoint = args.config_endpoint
-    if config_endpoint:
+    if config_endpoint := args.config_endpoint:
         loop = asyncio.get_event_loop()
         endpoints_config_path, credentials_path = loop.run_until_complete(
             _pull_runtime_config_from_server(config_endpoint)

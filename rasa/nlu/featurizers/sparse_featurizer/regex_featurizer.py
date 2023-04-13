@@ -49,7 +49,7 @@ class RegexFeaturizer(Featurizer):
 
         super().__init__(component_config)
 
-        self.known_patterns = known_patterns if known_patterns else []
+        self.known_patterns = known_patterns or []
         lookup_tables = lookup_tables or []
         self._add_lookup_table_regexes(lookup_tables)
 
@@ -97,11 +97,7 @@ class RegexFeaturizer(Featurizer):
         relating the name of the regex to whether it was matched."""
         tokens = message.get(TOKENS_NAMES[attribute], [])
 
-        if self.return_sequence:
-            seq_length = len(tokens)
-        else:
-            seq_length = 1
-
+        seq_length = len(tokens) if self.return_sequence else 1
         vec = np.zeros([seq_length, len(self.known_patterns)])
 
         for pattern_index, pattern in enumerate(self.known_patterns):
@@ -112,11 +108,7 @@ class RegexFeaturizer(Featurizer):
                 patterns = t.get("pattern", default={})
                 patterns[pattern["name"]] = False
 
-                if self.return_sequence:
-                    seq_index = token_index
-                else:
-                    seq_index = 0
-
+                seq_index = token_index if self.return_sequence else 0
                 for match in matches:
                     if t.offset < match.end() and t.end > match.start():
                         patterns[pattern["name"]] = True
@@ -143,29 +135,24 @@ class RegexFeaturizer(Featurizer):
                 FutureWarning,
             )
 
-        # otherwise it's a file path.
         else:
 
             try:
                 f = open(lookup_elements, "r", encoding=rasa.utils.io.DEFAULT_ENCODING)
             except OSError:
                 raise ValueError(
-                    "Could not load lookup table {}"
-                    "Make sure you've provided the correct path".format(lookup_elements)
+                    f"Could not load lookup table {lookup_elements}Make sure you've provided the correct path"
                 )
 
             with f:
                 for line in f:
-                    new_element = line.strip()
-                    if new_element:
+                    if new_element := line.strip():
                         elements_to_regex.append(new_element)
 
         # sanitize the regex, escape special characters
         elements_sanitized = [re.escape(e) for e in elements_to_regex]
 
-        # regex matching elements with word boundaries on either side
-        regex_string = "(?i)(\\b" + "\\b|\\b".join(elements_sanitized) + "\\b)"
-        return regex_string
+        return "(?i)(\\b" + "\\b|\\b".join(elements_sanitized) + "\\b)"
 
     @classmethod
     def load(
@@ -190,7 +177,7 @@ class RegexFeaturizer(Featurizer):
         """Persist this model into the passed directory.
 
         Return the metadata necessary to load the model again."""
-        file_name = file_name + ".pkl"
+        file_name = f"{file_name}.pkl"
         regex_file = os.path.join(model_dir, file_name)
         utils.write_json_to_file(regex_file, self.known_patterns, indent=4)
 

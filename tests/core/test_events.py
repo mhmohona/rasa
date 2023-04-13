@@ -312,7 +312,7 @@ def test_event_default_metadata(event_class: Type[Event]):
         }
     )
 
-    if isinstance(event, BotUttered) or isinstance(event, UserUttered):
+    if isinstance(event, (BotUttered, UserUttered)):
         assert event.as_dict()["metadata"] == {}
     else:
         assert "metadata" not in event.as_dict()

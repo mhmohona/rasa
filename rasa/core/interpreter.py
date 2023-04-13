@@ -75,15 +75,15 @@ class RegexInterpreter(NaturalLanguageInterpreter):
         for k, vs in parsed_entities.items():
             if not isinstance(vs, list):
                 vs = [vs]
-            for value in vs:
-                entities.append(
-                    {
-                        "entity": k,
-                        "start": sidx,
-                        "end": eidx,  # can't be more specific
-                        "value": value,
-                    }
-                )
+            entities.extend(
+                {
+                    "entity": k,
+                    "start": sidx,
+                    "end": eidx,  # can't be more specific
+                    "value": value,
+                }
+                for value in vs
+            )
         return entities
 
     @staticmethod
@@ -130,10 +130,7 @@ class RegexInterpreter(NaturalLanguageInterpreter):
             return 0.0
 
     def _starts_with_intent_prefix(self, text: Text) -> bool:
-        for c in self.allowed_prefixes():
-            if text.startswith(c):
-                return True
-        return False
+        return any(text.startswith(c) for c in self.allowed_prefixes())
 
     @staticmethod
     def extract_intent_and_entities(
@@ -143,12 +140,12 @@ class RegexInterpreter(NaturalLanguageInterpreter):
 
         prefixes = re.escape(RegexInterpreter.allowed_prefixes())
         # the regex matches "slot{"a": 1}"
-        m = re.search("^[" + prefixes + "]?([^{@]+)(@[0-9.]+)?([{].+)?", user_input)
+        m = re.search(f"^[{prefixes}" + "]?([^{@]+)(@[0-9.]+)?([{].+)?", user_input)
         if m is not None:
-            event_name = m.group(1).strip()
-            confidence = RegexInterpreter._parse_confidence(m.group(2))
+            event_name = m[1].strip()
+            confidence = RegexInterpreter._parse_confidence(m[2])
             entities = RegexInterpreter._parse_parameters(
-                m.group(3), m.start(3), m.end(3), user_input
+                m[3], m.start(3), m.end(3), user_input
             )
 
             return event_name, confidence, entities
@@ -191,10 +188,9 @@ class RegexInterpreter(NaturalLanguageInterpreter):
 
 class RasaNLUHttpInterpreter(NaturalLanguageInterpreter):
     def __init__(self, endpoint_config: Optional[EndpointConfig] = None) -> None:
-        if endpoint_config:
-            self.endpoint_config = endpoint_config
-        else:
-            self.endpoint_config = EndpointConfig(constants.DEFAULT_SERVER_URL)
+        self.endpoint_config = endpoint_config or EndpointConfig(
+            constants.DEFAULT_SERVER_URL
+        )
 
     async def parse(
         self,
@@ -235,9 +231,9 @@ class RasaNLUHttpInterpreter(NaturalLanguageInterpreter):
         }
 
         if self.endpoint_config.url.endswith("/"):
-            url = self.endpoint_config.url + "model/parse"
+            url = f"{self.endpoint_config.url}model/parse"
         else:
-            url = self.endpoint_config.url + "/model/parse"
+            url = f"{self.endpoint_config.url}/model/parse"
 
         # noinspection PyBroadException
         try:
@@ -245,13 +241,12 @@ class RasaNLUHttpInterpreter(NaturalLanguageInterpreter):
                 async with session.post(url, json=params) as resp:
                     if resp.status == 200:
                         return await resp.json()
-                    else:
-                        response_text = await resp.text()
-                        logger.error(
-                            f"Failed to parse text '{text}' using rasa NLU over "
-                            f"http. Error: {response_text}"
-                        )
-                        return None
+                    response_text = await resp.text()
+                    logger.error(
+                        f"Failed to parse text '{text}' using rasa NLU over "
+                        f"http. Error: {response_text}"
+                    )
+                    return None
         except Exception:
             logger.exception(f"Failed to parse text '{text}' using rasa NLU over http.")
             return None
@@ -285,9 +280,7 @@ class RasaNLUInterpreter(NaturalLanguageInterpreter):
 
         if self.lazy_init and self.interpreter is None:
             self._load_interpreter()
-        result = self.interpreter.parse(text, message_id)
-
-        return result
+        return self.interpreter.parse(text, message_id)
 
     def _load_interpreter(self) -> None:
         from rasa.nlu.model import Interpreter

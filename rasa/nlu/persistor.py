@@ -89,11 +89,10 @@ class Persistor:
     def _model_dir_and_model_from_filename(filename: Text) -> Tuple[Text, Text]:
 
         split = filename.split("___")
-        if len(split) > 1:
-            model_name = split[1].replace(".tar.gz", "")
-            return split[0], model_name
-        else:
+        if len(split) <= 1:
             return split[0], ""
+        model_name = split[1].replace(".tar.gz", "")
+        return split[0], model_name
 
     @staticmethod
     def _tar_name(model_name: Text, include_extension: bool = True) -> Text:

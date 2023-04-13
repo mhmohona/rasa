@@ -46,7 +46,7 @@ def enable_async_loop_debugging(
     event_loop: AbstractEventLoop, slow_callback_duration: float = 0.1
 ) -> AbstractEventLoop:
     logging.info(
-        "Enabling coroutine debugging. Loop id {}.".format(id(asyncio.get_event_loop()))
+        f"Enabling coroutine debugging. Loop id {id(asyncio.get_event_loop())}."
     )
 
     # Enable debugging
@@ -146,8 +146,7 @@ def read_json_file(filename: Text) -> Any:
         return json.loads(content)
     except ValueError as e:
         raise ValueError(
-            "Failed to read json from '{}'. Error: "
-            "{}".format(os.path.abspath(filename), e)
+            f"Failed to read json from '{os.path.abspath(filename)}'. Error: {e}"
         )
 
 
@@ -171,9 +170,7 @@ def read_config_file(filename: Text) -> Dict[Text, Any]:
         return content
     else:
         raise ValueError(
-            "Tried to load invalid config file '{}'. "
-            "Expected a key value mapping but found {}"
-            ".".format(filename, type(content))
+            f"Tried to load invalid config file '{filename}'. Expected a key value mapping but found {type(content)}."
         )
 
 
@@ -282,7 +279,7 @@ def file_type_validator(
 
     def is_valid(path: Text) -> bool:
         return path is not None and any(
-            [path.endswith(file_type) for file_type in valid_file_types]
+            path.endswith(file_type) for file_type in valid_file_types
         )
 
     return create_validator(is_valid, error_message)
@@ -347,8 +344,7 @@ def list_directory(path: Text) -> List[Text]:
 
     if not isinstance(path, str):
         raise ValueError(
-            "`resource_name` must be a string type. "
-            "Got `{}` instead".format(type(path))
+            f"`resource_name` must be a string type. Got `{type(path)}` instead"
         )
 
     if os.path.isfile(path):
@@ -366,9 +362,7 @@ def list_directory(path: Text) -> List[Text]:
             results.extend(os.path.join(base, f) for f in good_directories)
         return results
     else:
-        raise ValueError(
-            "Could not locate the resource '{}'.".format(os.path.abspath(path))
-        )
+        raise ValueError(f"Could not locate the resource '{os.path.abspath(path)}'.")
 
 
 def create_directory(directory_path: Text) -> None:

@@ -26,10 +26,7 @@ class Policy:
 
     @classmethod
     def _create_featurizer(cls, featurizer=None) -> TrackerFeaturizer:
-        if featurizer:
-            return copy.deepcopy(featurizer)
-        else:
-            return cls._standard_featurizer()
+        return copy.deepcopy(featurizer) if featurizer else cls._standard_featurizer()
 
     def __init__(
         self,
@@ -50,7 +47,7 @@ class Policy:
 
         params = {key: kwargs.get(key) for key in valid_keys if kwargs.get(key)}
         ignored_params = {
-            key: kwargs.get(key) for key in kwargs.keys() if not params.get(key)
+            key: kwargs.get(key) for key in kwargs if not params.get(key)
         }
         logger.debug(f"Parameters ignored by `model.fit(...)`: {ignored_params}")
         return params
@@ -70,8 +67,7 @@ class Policy:
         max_training_samples = kwargs.get("max_training_samples")
         if max_training_samples is not None:
             logger.debug(
-                "Limit training data to {} training samples."
-                "".format(max_training_samples)
+                f"Limit training data to {max_training_samples} training samples."
             )
             training_data.limit_training_data_to(max_training_samples)
 

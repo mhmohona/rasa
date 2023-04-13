@@ -82,7 +82,4 @@ class MyComponent(Component):
     ) -> "Component":
         """Load this component from file."""
 
-        if cached_component:
-            return cached_component
-        else:
-            return cls(meta)
+        return cached_component or cls(meta)

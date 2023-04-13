@@ -149,7 +149,7 @@ class TrackerStore:
         events = tracker.events
         for event in list(itertools.islice(events, offset, len(events))):
             body = {"sender_id": tracker.sender_id}
-            body.update(event.as_dict())
+            body |= event.as_dict()
             self.event_broker.publish(body)
 
     def number_of_existing_events(self, sender_id: Text) -> int:
@@ -280,10 +280,7 @@ class RedisTrackerStore(TrackerStore):
             DialogueStateTracker
         """
         stored = self.red.get(sender_id)
-        if stored is not None:
-            return self.deserialise_tracker(sender_id, stored)
-        else:
-            return None
+        return None if stored is None else self.deserialise_tracker(sender_id, stored)
 
     def keys(self) -> Iterable[Text]:
         """Returns keys of the Redis Tracker Store"""
@@ -360,14 +357,11 @@ class DynamoTrackerStore(TrackerStore):
     def retrieve(self, sender_id: Text) -> Optional[DialogueStateTracker]:
         """Create a tracker from all previously stored events."""
 
-        # Retrieve dialogues for a sender_id in reverse chronological order based on
-        # the session_date sort key
-        dialogues = self.db.query(
+        if dialogues := self.db.query(
             KeyConditionExpression=Key("sender_id").eq(sender_id),
             Limit=1,
             ScanIndexForward=False,
-        )["Items"]
-        if dialogues:
+        )["Items"]:
             return DialogueStateTracker.from_dict(
                 sender_id, dialogues[0].get("events"), self.domain.slots
             )
@@ -654,7 +648,7 @@ class SQLTrackerStore(TrackerStore):
 
         if host:
             # add fake scheme to properly parse components
-            parsed = urlsplit("schema://" + host)
+            parsed = urlsplit(f"schema://{host}")
 
             # users might include the port in the url
             port = parsed.port or port
@@ -666,7 +660,7 @@ class SQLTrackerStore(TrackerStore):
             password,
             host,
             port,
-            database=login_db if login_db else db,
+            database=login_db or db,
             query=query,
         )
 
@@ -752,7 +746,7 @@ class SQLTrackerStore(TrackerStore):
 
             events = [json.loads(event.data) for event in results]
 
-            if self.domain and len(events) > 0:
+            if self.domain and events:
                 logger.debug(f"Recreating tracker from sender id '{sender_id}'")
                 return DialogueStateTracker.from_dict(
                     sender_id, events, self.domain.slots

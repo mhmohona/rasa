@@ -27,11 +27,7 @@ class FileEventBroker(EventBroker):
     def from_endpoint_config(
         cls, broker_config: Optional["EndpointConfig"]
     ) -> Optional["FileEventBroker"]:
-        if broker_config is None:
-            return None
-
-        # noinspection PyArgumentList
-        return cls(**broker_config.kwargs)
+        return None if broker_config is None else cls(**broker_config.kwargs)
 
     def _event_logger(self) -> logging.Logger:
         """Instantiate the file logger."""

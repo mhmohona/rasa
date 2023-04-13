@@ -192,8 +192,7 @@ async def _train_async_internal(
         )
 
     print_success(
-        "Nothing changed. You can use the old model stored at '{}'."
-        "".format(os.path.abspath(old_model))
+        f"Nothing changed. You can use the old model stored at '{os.path.abspath(old_model)}'."
     )
     return old_model
 
@@ -337,13 +336,9 @@ async def _train_core_with_validated_data(
     import rasa.core.train
 
     with ExitStack() as stack:
-        if train_path:
-            # If the train path was provided, do nothing on exit.
-            _train_path = train_path
-        else:
-            # Otherwise, create a temp train path and clean it up on exit.
-            _train_path = stack.enter_context(TempDirectoryPath(tempfile.mkdtemp()))
-
+        _train_path = train_path or stack.enter_context(
+            TempDirectoryPath(tempfile.mkdtemp())
+        )
         # normal (not compare) training
         print_color("Training Core model...", color=bcolors.OKBLUE)
         domain, config = await asyncio.gather(
@@ -454,12 +449,9 @@ async def _train_nlu_with_validated_data(
     import rasa.nlu.train
 
     with ExitStack() as stack:
-        if train_path:
-            # If the train path was provided, do nothing on exit.
-            _train_path = train_path
-        else:
-            # Otherwise, create a temp train path and clean it up on exit.
-            _train_path = stack.enter_context(TempDirectoryPath(tempfile.mkdtemp()))
+        _train_path = train_path or stack.enter_context(
+            TempDirectoryPath(tempfile.mkdtemp())
+        )
         config = await file_importer.get_config()
         print_color("Training NLU model...", color=bcolors.OKBLUE)
         _, nlu_model, _ = await rasa.nlu.train(

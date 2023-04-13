@@ -325,12 +325,11 @@ def test_create_directory_if_new(tmp_path: Path):
 def test_create_directory_if_already_exists(tmp_path: Path):
     # This should not throw an exception
     io_utils.create_directory(str(tmp_path))
-    assert True
 
 
 def test_create_directory_for_file(tmp_path: Path):
     file = str(tmp_path / "dir" / "test.txt")
 
-    io_utils.create_directory_for_file(str(file))
+    io_utils.create_directory_for_file(file)
     assert not os.path.exists(file)
     assert os.path.exists(os.path.dirname(file))

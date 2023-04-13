@@ -56,12 +56,7 @@ class ConveRTFeaturizer(Featurizer):
 
         if self.return_sequence:
             raise NotImplementedError(
-                f"ConveRTFeaturizer always returns a feature vector of size "
-                f"(1 x feature-dimensions). It cannot return a proper sequence "
-                f"right now. ConveRTFeaturizer can only be used "
-                f"with 'return_sequence' set to False. Also, any other featurizer "
-                f"used next to ConveRTFeaturizer should have the flag "
-                f"'return_sequence' set to False."
+                "ConveRTFeaturizer always returns a feature vector of size (1 x feature-dimensions). It cannot return a proper sequence right now. ConveRTFeaturizer can only be used with 'return_sequence' set to False. Also, any other featurizer used next to ConveRTFeaturizer should have the flag 'return_sequence' set to False."
             )
 
     @classmethod
@@ -75,9 +70,7 @@ class ConveRTFeaturizer(Featurizer):
         # Get text for attribute of each example
         batch_attribute_text = [ex.get(attribute) for ex in batch_examples]
 
-        batch_features = self._run_model_on_text(batch_attribute_text)
-
-        return batch_features
+        return self._run_model_on_text(batch_attribute_text)
 
     def _run_model_on_text(self, batch: List[Text]) -> np.ndarray:
 

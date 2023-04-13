@@ -17,8 +17,6 @@ class LuisReader(JsonTrainingDataReader):
         from rasa.nlu.training_data import Message, TrainingData
 
         training_examples = []
-        regex_features = []
-
         max_tested_luis_schema_version = 5
         major_version = int(js["luis_schema_version"].split(".")[0])
         if major_version > max_tested_luis_schema_version:
@@ -28,12 +26,11 @@ class LuisReader(JsonTrainingDataReader):
                 f"Training may not be performed correctly. "
             )
 
-        for r in js.get("regex_features", []):
-            if r.get("activated", False):
-                regex_features.append(
-                    {"name": r.get("name"), "pattern": r.get("pattern")}
-                )
-
+        regex_features = [
+            {"name": r.get("name"), "pattern": r.get("pattern")}
+            for r in js.get("regex_features", [])
+            if r.get("activated", False)
+        ]
         for s in js["utterances"]:
             text = s.get("text")
             intent = s.get("intent")

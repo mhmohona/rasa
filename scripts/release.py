@@ -91,9 +91,8 @@ def confirm_version(version: Text) -> bool:
         ).ask()
     if confirmed:
         return True
-    else:
-        print("Aborting.")
-        sys.exit(1)
+    print("Aborting.")
+    sys.exit(1)
 
 
 def ask_version() -> Text:
@@ -115,9 +114,8 @@ def ask_version() -> Text:
 
     if version:
         return version
-    else:
-        print("Aborting.")
-        sys.exit(1)
+    print("Aborting.")
+    sys.exit(1)
 
 
 def git_existing_tags() -> Set[Text]:

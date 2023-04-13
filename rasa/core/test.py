@@ -20,9 +20,7 @@ import matplotlib
 
 # At first, matplotlib will be initialized with default OS-specific available backend
 # if that didn't happen, we'll try to set it up manually
-if matplotlib.get_backend() is not None:
-    pass
-else:  # pragma: no cover
+if matplotlib.get_backend() is None:
     try:
         # If the `tkinter` package is available, we can use the `TkAgg` backend
         import tkinter
@@ -134,9 +132,7 @@ class WronglyPredictedAction(ActionExecuted):
         super().__init__(correct_action, policy, confidence, timestamp=timestamp)
 
     def as_story_string(self):
-        return "{}   <!-- predicted: {} -->".format(
-            self.action_name, self.predicted_action
-        )
+        return f"{self.action_name}   <!-- predicted: {self.predicted_action} -->"
 
 
 class EndToEndUserUtterance(UserUttered):
@@ -159,10 +155,11 @@ class WronglyClassifiedUserUtterance(UserUttered):
 
     def __init__(self, event: UserUttered, eval_store: EvaluationStore):
 
-        if not eval_store.intent_predictions:
-            self.predicted_intent = None
-        else:
-            self.predicted_intent = eval_store.intent_predictions[0]
+        self.predicted_intent = (
+            eval_store.intent_predictions[0]
+            if eval_store.intent_predictions
+            else None
+        )
         self.predicted_entities = eval_store.entity_predictions
 
         intent = {"name": eval_store.intent_targets[0]}
@@ -183,12 +180,7 @@ class WronglyClassifiedUserUtterance(UserUttered):
         predicted_message = md_format_message(
             self.text, self.predicted_intent, self.predicted_entities
         )
-        return "{}: {}   <!-- predicted: {}: {} -->".format(
-            self.intent.get("name"),
-            correct_message,
-            self.predicted_intent,
-            predicted_message,
-        )
+        return f'{self.intent.get("name")}: {correct_message}   <!-- predicted: {self.predicted_intent}: {predicted_message} -->'
 
 
 async def _generate_trackers(resource_name, agent, max_stories=None, use_e2e=False):
@@ -257,8 +249,7 @@ def _collect_user_uttered_predictions(
         )
         if fail_on_prediction_errors:
             raise ValueError(
-                "NLU model predicted a wrong intent. Failed Story:"
-                " \n\n{}".format(partial_tracker.export_stories())
+                f"NLU model predicted a wrong intent. Failed Story: \n\n{partial_tracker.export_stories()}"
             )
     else:
         end_to_end_user_utterance = EndToEndUserUtterance(
@@ -318,10 +309,7 @@ def _collect_action_executed_predictions(
             )
         )
         if fail_on_prediction_errors:
-            error_msg = (
-                "Model predicted a wrong action. Failed Story: "
-                "\n\n{}".format(partial_tracker.export_stories())
-            )
+            error_msg = f"Model predicted a wrong action. Failed Story: \n\n{partial_tracker.export_stories()}"
             if FormPolicy.__name__ in policy:
                 error_msg += (
                     "FormAction is not run during "
@@ -544,12 +532,10 @@ def log_evaluation_table(
     accuracy,
     in_training_data_fraction,
     include_report=True,
-):  # pragma: no cover
+):    # pragma: no cover
     """Log the sklearn evaluation metrics."""
     logger.info(f"Evaluation Results on {name} level:")
-    logger.info(
-        "\tCorrect:          {} / {}".format(int(len(golds) * accuracy), len(golds))
-    )
+    logger.info(f"\tCorrect:          {int(len(golds) * accuracy)} / {len(golds)}")
     logger.info(f"\tF1-Score:         {f1:.3f}")
     logger.info(f"\tPrecision:        {precision:.3f}")
     logger.info(f"\tAccuracy:         {accuracy:.3f}")
@@ -599,7 +585,7 @@ def plot_story_evaluation(
     )
 
     fig = plt.gcf()
-    fig.set_size_inches(int(20), int(20))
+    fig.set_size_inches(20, 20)
     fig.savefig(os.path.join(out_directory, "story_confmat.pdf"), bbox_inches="tight")
 
 

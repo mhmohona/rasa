@@ -32,10 +32,7 @@ class LockStore:
     def create(obj: Union["LockStore", EndpointConfig, None]) -> "LockStore":
         """Factory to create a lock store."""
 
-        if isinstance(obj, LockStore):
-            return obj
-        else:
-            return _create_from_endpoint_config(obj)
+        return obj if isinstance(obj, LockStore) else _create_from_endpoint_config(obj)
 
     @staticmethod
     def create_lock(conversation_id: Text) -> TicketLock:
@@ -128,8 +125,7 @@ class LockStore:
     def update_lock(self, conversation_id: Text) -> None:
         """Fetch lock for `conversation_id`, remove expired tickets and save lock."""
 
-        lock = self.get_lock(conversation_id)
-        if lock:
+        if lock := self.get_lock(conversation_id):
             lock.remove_expired_tickets()
             self.save_lock(lock)
 
@@ -137,9 +133,7 @@ class LockStore:
         """Fetch existing lock for `conversation_id` or create a new one if
         it doesn't exist."""
 
-        existing_lock = self.get_lock(conversation_id)
-
-        if existing_lock:
+        if existing_lock := self.get_lock(conversation_id):
             return existing_lock
 
         return self.create_lock(conversation_id)
@@ -148,8 +142,7 @@ class LockStore:
         """Return whether someone is waiting for lock associated with
         `conversation_id`."""
 
-        lock = self.get_lock(conversation_id)
-        if lock:
+        if lock := self.get_lock(conversation_id):
             return lock.is_someone_waiting()
 
         return False
@@ -160,8 +153,7 @@ class LockStore:
         Removes ticket from lock and saves lock.
         """
 
-        lock = self.get_lock(conversation_id)
-        if lock:
+        if lock := self.get_lock(conversation_id):
             lock.remove_ticket_for(ticket_number)
             self.save_lock(lock)
 
@@ -194,13 +186,12 @@ class RedisLockStore(LockStore):
         import redis
 
         self.red = redis.StrictRedis(
-            host=host, port=int(port), db=int(db), password=password, ssl=use_ssl
+            host=host, port=port, db=db, password=password, ssl=use_ssl
         )
         super().__init__()
 
     def get_lock(self, conversation_id: Text) -> Optional[TicketLock]:
-        serialised_lock = self.red.get(conversation_id)
-        if serialised_lock:
+        if serialised_lock := self.red.get(conversation_id):
             return TicketLock.from_dict(json.loads(serialised_lock))
 
     def delete_lock(self, conversation_id: Text) -> None:

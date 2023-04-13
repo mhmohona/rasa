@@ -86,15 +86,13 @@ class MemoizationPolicy(Policy):
         if not trackers_as_states:
             return
 
-        assert len(trackers_as_states[0]) == self.max_history, (
-            "Trying to mem featurized data with {} historic turns. Expected: "
-            "{}".format(len(trackers_as_states[0]), self.max_history)
-        )
+        assert (
+            len(trackers_as_states[0]) == self.max_history
+        ), f"Trying to mem featurized data with {len(trackers_as_states[0])} historic turns. Expected: {self.max_history}"
 
-        assert len(trackers_as_actions[0]) == 1, (
-            "The second dimension of trackers_as_action should be 1, "
-            "instead of {}".format(len(trackers_as_actions[0]))
-        )
+        assert (
+            len(trackers_as_actions[0]) == 1
+        ), f"The second dimension of trackers_as_action should be 1, instead of {len(trackers_as_actions[0])}"
 
         ambiguous_feature_keys = set()
 
@@ -114,13 +112,7 @@ class MemoizationPolicy(Policy):
                     if self.lookup[feature_key] != feature_item:
                         if online:
                             logger.info(
-                                "Original stories are "
-                                "different for {} -- {}\n"
-                                "Memorized the new ones for "
-                                "now. Delete contradicting "
-                                "examples after exporting "
-                                "the new stories."
-                                "".format(states, action)
+                                f"Original stories are different for {states} -- {action}\nMemorized the new ones for now. Delete contradicting examples after exporting the new stories."
                             )
                             self.lookup[feature_key] = feature_item
                         else:
@@ -136,11 +128,10 @@ class MemoizationPolicy(Policy):
         from rasa.utils import io
 
         feature_str = json.dumps(states, sort_keys=True).replace('"', "")
-        if self.ENABLE_FEATURE_STRING_COMPRESSION:
-            compressed = zlib.compress(bytes(feature_str, io.DEFAULT_ENCODING))
-            return base64.b64encode(compressed).decode(io.DEFAULT_ENCODING)
-        else:
+        if not self.ENABLE_FEATURE_STRING_COMPRESSION:
             return feature_str
+        compressed = zlib.compress(bytes(feature_str, io.DEFAULT_ENCODING))
+        return base64.b64encode(compressed).decode(io.DEFAULT_ENCODING)
 
     def train(
         self,
@@ -161,7 +152,7 @@ class MemoizationPolicy(Policy):
             trackers_as_actions,
         ) = self.featurizer.training_states_and_actions(training_trackers, domain)
         self._add_states_to_lookup(trackers_as_states, trackers_as_actions, domain)
-        logger.debug("Memorized {} unique examples.".format(len(self.lookup)))
+        logger.debug(f"Memorized {len(self.lookup)} unique examples.")
 
     def continue_training(
         self,
@@ -249,9 +240,7 @@ class MemoizationPolicy(Policy):
             )
         else:
             logger.info(
-                "Couldn't load memoization for policy. "
-                "File '{}' doesn't exist. Falling back to empty "
-                "turn memory.".format(memorized_file)
+                f"Couldn't load memoization for policy. File '{memorized_file}' doesn't exist. Falling back to empty turn memory."
             )
             return cls()
 

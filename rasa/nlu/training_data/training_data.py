@@ -39,11 +39,11 @@ class TrainingData:
             self.training_examples = self.sanitize_examples(training_examples)
         else:
             self.training_examples = []
-        self.entity_synonyms = entity_synonyms if entity_synonyms else {}
-        self.regex_features = regex_features if regex_features else []
+        self.entity_synonyms = entity_synonyms or {}
+        self.regex_features = regex_features or []
         self.sort_regex_features()
-        self.lookup_tables = lookup_tables if lookup_tables else []
-        self.nlg_stories = nlg_stories if nlg_stories else {}
+        self.lookup_tables = lookup_tables or []
+        self.nlg_stories = nlg_stories or {}
 
     def merge(self, *others: "TrainingData") -> "TrainingData":
         """Return merged instance of this data with other training data."""
@@ -79,11 +79,9 @@ class TrainingData:
     def filter_by_intent(self, intent: Text):
         """Filter training examples """
 
-        training_examples = []
-        for ex in self.training_examples:
-            if ex.get("intent") == intent:
-                training_examples.append(ex)
-
+        training_examples = [
+            ex for ex in self.training_examples if ex.get("intent") == intent
+        ]
         return TrainingData(
             training_examples,
             self.entity_synonyms,
@@ -171,29 +169,23 @@ class TrainingData:
     def sort_regex_features(self) -> None:
         """Sorts regex features lexicographically by name+pattern"""
         self.regex_features = sorted(
-            self.regex_features, key=lambda e: "{}+{}".format(e["name"], e["pattern"])
+            self.regex_features, key=lambda e: f'{e["name"]}+{e["pattern"]}'
         )
 
     def fill_response_phrases(self) -> None:
         """Set response phrase for all examples by looking up NLG stories"""
         for example in self.training_examples:
-            response_key = example.get(RESPONSE_KEY_ATTRIBUTE)
-            # if response_key is None, that means the corresponding intent is not a retrieval intent
-            # and hence no response text needs to be fetched.
-            # If response_key is set, fetch the corresponding response text
-            if response_key:
+            if response_key := example.get(RESPONSE_KEY_ATTRIBUTE):
                 # look for corresponding bot utterance
                 story_lookup_intent = example.get_combined_intent_response_key()
-                assistant_utterances = self.nlg_stories.get(story_lookup_intent, [])
-                if assistant_utterances:
+                if assistant_utterances := self.nlg_stories.get(
+                    story_lookup_intent, []
+                ):
                     # selecting only first assistant utterance for now
                     example.set(RESPONSE_ATTRIBUTE, assistant_utterances[0])
                 else:
                     raise ValueError(
-                        "No response phrases found for {}. Check training data "
-                        "files for a possible wrong intent name in NLU/NLG file".format(
-                            story_lookup_intent
-                        )
+                        f"No response phrases found for {story_lookup_intent}. Check training data files for a possible wrong intent name in NLU/NLG file"
                     )
 
     def nlu_as_json(self, **kwargs: Any) -> Text:
@@ -266,12 +258,10 @@ class TrainingData:
     @staticmethod
     def get_nlg_persist_filename(nlu_filename: Text) -> Text:
 
-        # Add nlg_ as prefix and change extension to .md
-        filename = os.path.join(
+        return os.path.join(
             os.path.dirname(nlu_filename),
-            "nlg_" + os.path.splitext(os.path.basename(nlu_filename))[0] + ".md",
+            f"nlg_{os.path.splitext(os.path.basename(nlu_filename))[0]}.md",
         )
-        return filename
 
     def persist(
         self, dir_name: Text, filename: Text = DEFAULT_TRAINING_DATA_OUTPUT_PATH
@@ -382,13 +372,11 @@ class TrainingData:
     @staticmethod
     def build_nlg_stories_from_examples(examples) -> Dict[Text, list]:
 
-        nlg_stories = {}
-        for ex in examples:
-            if ex.get(RESPONSE_KEY_ATTRIBUTE) and ex.get(RESPONSE_ATTRIBUTE):
-                nlg_stories[ex.get_combined_intent_response_key()] = [
-                    ex.get(RESPONSE_ATTRIBUTE)
-                ]
-        return nlg_stories
+        return {
+            ex.get_combined_intent_response_key(): [ex.get(RESPONSE_ATTRIBUTE)]
+            for ex in examples
+            if ex.get(RESPONSE_KEY_ATTRIBUTE) and ex.get(RESPONSE_ATTRIBUTE)
+        }
 
     def split_nlu_examples(
         self, train_frac: float, random_seed: Optional[int] = None
@@ -408,18 +396,22 @@ class TrainingData:
 
     def print_stats(self) -> None:
         logger.info(
-            "Training data stats: \n"
-            + "\t- intent examples: {} ({} distinct intents)\n".format(
-                len(self.intent_examples), len(self.intents)
+            (
+                (
+                    (
+                        (
+                            (
+                                "Training data stats: \n"
+                                + f"\t- intent examples: {len(self.intent_examples)} ({len(self.intents)} distinct intents)\n"
+                            )
+                            + f"\t- Found intents: {list_to_str(self.intents)}\n"
+                        )
+                        + f"\t- Number of response examples: {len(self.response_examples)} ({len(self.responses)} distinct response)\n"
+                    )
+                    + f"\t- entity examples: {len(self.entity_examples)} ({len(self.entities)} distinct entities)\n"
+                )
+                + f"\t- found entities: {list_to_str(self.entities)}\n"
             )
-            + "\t- Found intents: {}\n".format(list_to_str(self.intents))
-            + "\t- Number of response examples: {} ({} distinct response)\n".format(
-                len(self.response_examples), len(self.responses)
-            )
-            + "\t- entity examples: {} ({} distinct entities)\n".format(
-                len(self.entity_examples), len(self.entities)
-            )
-            + "\t- found entities: {}\n".format(list_to_str(self.entities))
         )
 
     def is_empty(self) -> bool:
@@ -431,4 +423,4 @@ class TrainingData:
             self.regex_features,
             self.lookup_tables,
         ]
-        return not any([len(l) > 0 for l in lists_to_check])
+        return all(len(l) <= 0 for l in lists_to_check)

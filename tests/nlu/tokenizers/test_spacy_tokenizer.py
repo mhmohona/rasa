@@ -63,7 +63,7 @@ def test_spacy_intent_tokenizer(spacy_nlp_component):
     spacy_tokenizer.train(td, config=None)
 
     intent_tokens_exist = [
-        True if example.get("intent_tokens") is not None else False
+        example.get("intent_tokens") is not None
         for example in td.intent_examples
     ]
 

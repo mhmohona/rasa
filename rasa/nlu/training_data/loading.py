@@ -66,7 +66,7 @@ def load_data(resource_name: Text, language: Optional[Text] = "en") -> "Training
     files = io_utils.list_files(resource_name)
     data_sets = [_load(f, language) for f in files]
     data_sets = [ds for ds in data_sets if ds]
-    if len(data_sets) == 0:
+    if not data_sets:
         training_data = TrainingData()
     elif len(data_sets) == 1:
         training_data = data_sets[0]
@@ -91,9 +91,7 @@ async def load_data_from_endpoint(
         response = await data_endpoint.request("get")
         response.raise_for_status()
         temp_data_file = io_utils.create_temporary_file(response.content, mode="w+b")
-        training_data = _load(temp_data_file, language)
-
-        return training_data
+        return _load(temp_data_file, language)
     except Exception as e:
         logger.warning(f"Could not retrieve training data from URL:\n{e}")
 
@@ -132,9 +130,7 @@ def _load(filename: Text, language: Optional[Text] = "en") -> Optional["Training
     if fformat == UNK:
         raise ValueError(f"Unknown data format for file '{filename}'.")
 
-    reader = _reader_factory(fformat)
-
-    if reader:
+    if reader := _reader_factory(fformat):
         return reader.read(filename, language=language, fformat=fformat)
     else:
         return None
@@ -142,8 +138,7 @@ def _load(filename: Text, language: Optional[Text] = "en") -> Optional["Training
 
 def _is_nlg_story_format(content: Text) -> bool:
 
-    match = re.search(_nlg_markdown_marker_regex, content)
-    if match:
+    if match := re.search(_nlg_markdown_marker_regex, content):
         return True
 
 
@@ -163,7 +158,7 @@ def guess_format(filename: Text) -> Text:
         content = io_utils.read_file(filename)
         js = json.loads(content)
     except ValueError:
-        if any([marker in content for marker in _markdown_section_markers]):
+        if any(marker in content for marker in _markdown_section_markers):
             guess = MARKDOWN
         elif _is_nlg_story_format(content):
             guess = MARKDOWN_NLG

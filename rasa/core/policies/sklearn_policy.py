@@ -62,13 +62,10 @@ class SklearnPolicy(Policy):
             shuffle: Whether to shuffle training data.
         """
 
-        if featurizer:
-            if not isinstance(featurizer, MaxHistoryTrackerFeaturizer):
-                raise TypeError(
-                    "Passed featurizer of type {}, should be "
-                    "MaxHistoryTrackerFeaturizer."
-                    "".format(type(featurizer).__name__)
-                )
+        if featurizer and not isinstance(featurizer, MaxHistoryTrackerFeaturizer):
+            raise TypeError(
+                f"Passed featurizer of type {type(featurizer).__name__}, should be MaxHistoryTrackerFeaturizer."
+            )
         super().__init__(featurizer, priority)
 
         self.model = model or self._default_model()
@@ -190,15 +187,13 @@ class SklearnPolicy(Policy):
         filename = os.path.join(path, "sklearn_model.pkl")
         if not os.path.exists(path):
             raise OSError(
-                "Failed to load dialogue model. Path {} "
-                "doesn't exist".format(os.path.abspath(filename))
+                f"Failed to load dialogue model. Path {os.path.abspath(filename)} doesn't exist"
             )
 
         featurizer = TrackerFeaturizer.load(path)
-        assert isinstance(featurizer, MaxHistoryTrackerFeaturizer), (
-            "Loaded featurizer of type {}, should be "
-            "MaxHistoryTrackerFeaturizer.".format(type(featurizer).__name__)
-        )
+        assert isinstance(
+            featurizer, MaxHistoryTrackerFeaturizer
+        ), f"Loaded featurizer of type {type(featurizer).__name__}, should be MaxHistoryTrackerFeaturizer."
 
         meta_file = os.path.join(path, "sklearn_policy.json")
         meta = json.loads(rasa.utils.io.read_file(meta_file))

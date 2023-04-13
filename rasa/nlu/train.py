@@ -31,10 +31,7 @@ class TrainingException(Exception):
         exception: Optional[Exception] = None,
     ) -> None:
         self.failed_target_project = failed_target_project
-        if exception:
-            self.message = exception.args[0]
-        else:
-            self.message = ""
+        self.message = exception.args[0] if exception else ""
 
     def __str__(self) -> Text:
         return self.message
@@ -43,12 +40,11 @@ class TrainingException(Exception):
 def create_persistor(persistor: Optional[Text]):
     """Create a remote persistor to store the model if configured."""
 
-    if persistor is not None:
-        from rasa.nlu.persistor import get_persistor
-
-        return get_persistor(persistor)
-    else:
+    if persistor is None:
         return None
+    from rasa.nlu.persistor import get_persistor
+
+    return get_persistor(persistor)
 
 
 async def train(

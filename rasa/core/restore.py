@@ -86,7 +86,7 @@ async def replay_events(tracker: DialogueStateTracker, agent: "Agent") -> None:
     actions_between_utterances = []
     last_prediction = [ACTION_LISTEN_NAME]
 
-    for i, event in enumerate(tracker.events_after_latest_restart()):
+    for event in tracker.events_after_latest_restart():
         if isinstance(event, UserUttered):
             _check_prediction_aligns_with_story(
                 last_prediction, actions_between_utterances

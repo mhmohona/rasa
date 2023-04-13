@@ -44,15 +44,7 @@ class Slot:
 
     def as_feature(self) -> NoReturn:
         raise NotImplementedError(
-            "Each slot type needs to specify how its "
-            "value can be converted to a feature. Slot "
-            "'{}' is a generic slot that can not be used "
-            "for predictions. Make sure you add this "
-            "slot to your domain definition, specifying "
-            "the type of the slot. If you implemented "
-            "a custom slot type class, make sure to "
-            "implement `.as_feature()`."
-            "".format(self.name)
+            f"Each slot type needs to specify how its value can be converted to a feature. Slot '{self.name}' is a generic slot that can not be used for predictions. Make sure you add this slot to your domain definition, specifying the type of the slot. If you implemented a custom slot type class, make sure to implement `.as_feature()`."
         )
 
     def reset(self) -> None:
@@ -74,9 +66,7 @@ class Slot:
             return class_from_module_path(type_name)
         except (ImportError, AttributeError):
             raise ValueError(
-                "Failed to find slot type, '{}' is neither a known type nor "
-                "user-defined. If you are creating your own slot type, make "
-                "sure its module path is correct.".format(type_name)
+                f"Failed to find slot type, '{type_name}' is neither a known type nor user-defined. If you are creating your own slot type, make sure its module path is correct."
             )
 
     def persistence_info(self) -> Dict[str, Any]:
@@ -105,10 +95,7 @@ class FloatSlot(Slot):
 
         if min_value >= max_value:
             raise ValueError(
-                "Float slot ('{}') created with an invalid range "
-                "using min ({}) and max ({}) values. Make sure "
-                "min is smaller than max."
-                "".format(self.name, self.min_value, self.max_value)
+                f"Float slot ('{self.name}') created with an invalid range using min ({self.min_value}) and max ({self.max_value}) values. Make sure min is smaller than max."
             )
 
         if initial_value is not None and not (min_value <= initial_value <= max_value):
@@ -165,10 +152,7 @@ class ListSlot(Slot):
 
     def as_feature(self) -> List[float]:
         try:
-            if self.value is not None and len(self.value) > 0:
-                return [1.0]
-            else:
-                return [0.0]
+            return [1.0] if self.value is not None and len(self.value) > 0 else [0.0]
         except (TypeError, ValueError):
             # we couldn't convert the value to a list - using default value
             return [0.0]

@@ -17,12 +17,9 @@ class Message:
     ) -> None:
         self.text = text
         self.time = time
-        self.data = data if data else {}
+        self.data = data or {}
 
-        if output_properties:
-            self.output_properties = output_properties
-        else:
-            self.output_properties = set()
+        self.output_properties = output_properties or set()
 
     def set(self, prop, info, add_to_output=False) -> None:
         self.data[prop] = info
@@ -30,9 +27,7 @@ class Message:
             self.output_properties.add(prop)
 
     def get(self, prop, default=None) -> Any:
-        if prop == TEXT_ATTRIBUTE:
-            return self.text
-        return self.data.get(prop, default)
+        return self.text if prop == TEXT_ATTRIBUTE else self.data.get(prop, default)
 
     def as_dict_nlu(self) -> dict:
         """Get dict representation of message as it would appear in training data"""
@@ -60,10 +55,11 @@ class Message:
         return dict(d, text=self.text)
 
     def __eq__(self, other) -> bool:
-        if not isinstance(other, Message):
-            return False
-        else:
-            return (other.text, ordered(other.data)) == (self.text, ordered(self.data))
+        return (
+            (other.text, ordered(other.data)) == (self.text, ordered(self.data))
+            if isinstance(other, Message)
+            else False
+        )
 
     def __hash__(self) -> int:
         return hash((self.text, str(ordered(self.data))))

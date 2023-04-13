@@ -55,11 +55,7 @@ class UserMessage:
         """
         self.text = text.strip() if text else text
 
-        if message_id is not None:
-            self.message_id = str(message_id)
-        else:
-            self.message_id = uuid.uuid4().hex
-
+        self.message_id = uuid.uuid4().hex if message_id is None else str(message_id)
         if output_channel is not None:
             self.output_channel = output_channel
         else:
@@ -83,10 +79,7 @@ def register(
         await app.agent.handle_message(*args, **kwargs)
 
     for channel in input_channels:
-        if route:
-            p = urljoin(route, channel.url_prefix())
-        else:
-            p = None
+        p = urljoin(route, channel.url_prefix()) if route else None
         app.blueprint(channel.blueprint(handler), url_prefix=p)
 
     app.input_channels = input_channels
@@ -117,14 +110,7 @@ class InputChannel:
     @classmethod
     def raise_missing_credentials_exception(cls) -> None:
         raise Exception(
-            "To use the {} input channel, you need to "
-            "pass a credentials file using '--credentials'. "
-            "The argument should be a file path pointing to "
-            "a yml file containing the {} authentication "
-            "information. Details in the docs: "
-            "{}/user-guide/messaging-and-voice-channels/".format(
-                cls.name(), cls.name(), DOCS_BASE_URL
-            )
+            f"To use the {cls.name()} input channel, you need to pass a credentials file using '--credentials'. The argument should be a file path pointing to a yml file containing the {cls.name()} authentication information. Details in the docs: {DOCS_BASE_URL}/user-guide/messaging-and-voice-channels/"
         )
 
     def get_output_channel(self) -> Optional["OutputChannel"]:
@@ -313,10 +299,7 @@ class CollectingOutputChannel(OutputChannel):
         return utils.remove_none_values(obj)
 
     def latest_output(self) -> Optional[Dict[Text, Any]]:
-        if self.messages:
-            return self.messages[-1]
-        else:
-            return None
+        return self.messages[-1] if self.messages else None
 
     async def _persist_message(self, message: Dict[Text, Any]) -> None:
         self.messages.append(message)  # pytype: disable=bad-return-type
@@ -370,7 +353,7 @@ class QueueOutputChannel(CollectingOutputChannel):
     # noinspection PyMissingConstructor
     def __init__(self, message_queue: Optional[Queue] = None) -> None:
         super().__init__()
-        self.messages = Queue() if not message_queue else message_queue
+        self.messages = message_queue or Queue()
 
     def latest_output(self) -> NoReturn:
         raise NotImplementedError("A queue doesn't allow to peek at messages.")
@@ -474,29 +457,28 @@ class RestInput(InputChannel):
                     ),
                     content_type="text/event-stream",
                 )
-            else:
-                collector = CollectingOutputChannel()
-                # noinspection PyBroadException
-                try:
-                    await on_new_message(
-                        UserMessage(
-                            text,
-                            collector,
-                            sender_id,
-                            input_channel=input_channel,
-                            metadata=metadata,
-                        )
+            collector = CollectingOutputChannel()
+            # noinspection PyBroadException
+            try:
+                await on_new_message(
+                    UserMessage(
+                        text,
+                        collector,
+                        sender_id,
+                        input_channel=input_channel,
+                        metadata=metadata,
                     )
-                except CancelledError:
-                    logger.error(
-                        "Message handling timed out for "
-                        "user message '{}'.".format(text)
-                    )
-                except Exception:
-                    logger.exception(
-                        "An exception occured while handling "
-                        "user message '{}'.".format(text)
-                    )
-                return response.json(collector.messages)
+                )
+            except CancelledError:
+                logger.error(
+                    "Message handling timed out for "
+                    "user message '{}'.".format(text)
+                )
+            except Exception:
+                logger.exception(
+                    "An exception occured while handling "
+                    "user message '{}'.".format(text)
+                )
+            return response.json(collector.messages)
 
         return custom_webhook
